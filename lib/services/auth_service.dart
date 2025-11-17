@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 
@@ -7,15 +6,6 @@ class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static const String userBoxName = 'userBox';
-
-  // Initialize Firebase
-  static Future<void> initializeFirebase() async {
-    try {
-      await Firebase.initializeApp();
-    } catch (e) {
-      // Firebase already initialized
-    }
-  }
 
   // Sign Up
   static Future<bool> signUp({
@@ -155,28 +145,9 @@ class AuthService {
     }
   }
 
-  // Check if logged in (sync)
+  // Check if logged in
   static bool isLoggedIn() {
     return _auth.currentUser != null;
-  }
-
-  // Check if logged in (async)
-  static Future<bool> isUserLoggedIn() async {
-    return _auth.currentUser != null;
-  }
-
-  // Get user profile
-  static Future<Map<String, dynamic>?> getUserProfile() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return null;
-
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      return doc.data();
-    } catch (e) {
-      print('Get User Profile Error: $e');
-      return null;
-    }
   }
 
   // Get auth token

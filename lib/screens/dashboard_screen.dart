@@ -77,17 +77,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      body: SafeArea(
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Header with Profile
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                // Header with Profile
                 Container(
                   padding: const EdgeInsets.all(16),
                   color: Colors.white,
@@ -400,7 +398,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ],
-        ),
       ),
       // Bottom navigation is managed by `MainNavigationScreen` in `main.dart`.
     );

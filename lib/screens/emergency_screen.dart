@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:geolocator/geolocator.dart';
 import 'incident_report_screen.dart';
-import '../services/chat_service.dart';
 
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
@@ -12,54 +9,6 @@ class EmergencyScreen extends StatefulWidget {
 }
 
 class _EmergencyScreenState extends State<EmergencyScreen> {
-  bool _sosActive = false;
-
-  Future<void> _callEmergency(String number) async {
-    final Uri launchUri = Uri(scheme: 'tel', path: number);
-    try {
-      await launchUrl(launchUri);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not launch call: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _triggerSOS() async {
-    setState(() => _sosActive = true);
-
-    try {
-      final Position pos = await Geolocator.getCurrentPosition();
-
-      // Emit SOS alert via Socket.io to admin dashboard
-      ChatService.sendMessage(
-        'SOS_ALERT:${pos.latitude},${pos.longitude}',
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('SOS Alert sent to authorities with your location!'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) setState(() => _sosActive = false);
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('SOS Error: $e')),
-        );
-        setState(() => _sosActive = false);
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,7 +30,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                 height: 200,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _sosActive ? Colors.orange[600] : Colors.red,
+                  color: Colors.red,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.red.withOpacity(0.3),
@@ -91,24 +40,26 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                   ],
                 ),
                 child: GestureDetector(
-                  onTap: _triggerSOS,
-                  child: Center(
+                  onTap: () {
+                    _showSOSDialog();
+                  },
+                  child: const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.emergency, size: 64, color: Colors.white),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         Text(
-                          _sosActive ? 'SENDING...' : 'SOS',
-                          style: const TextStyle(
+                          'SOS',
+                          style: TextStyle(
                             color: Colors.white,
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
-                          _sosActive ? 'Alert sent!' : 'Tap to send',
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          'Press and Hold',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
                         ),
                       ],
                     ),
@@ -122,33 +73,32 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              _buildEmergencyContact('Police', '100', Colors.blue, () => _callEmergency('100')),
+              _buildEmergencyContact('Police', '100', Colors.blue),
               const SizedBox(height: 12),
-              _buildEmergencyContact('Ambulance', '102', Colors.green, () => _callEmergency('102')),
+              _buildEmergencyContact('Ambulance', '102', Colors.green),
               const SizedBox(height: 12),
-              _buildEmergencyContact('Fire Department', '101', Colors.orange, () => _callEmergency('101')),
+              _buildEmergencyContact('Fire Department', '101', Colors.orange),
               const SizedBox(height: 12),
-              _buildEmergencyContact('Local Police Station', '+91 2560 234567', Colors.indigo, () => _callEmergency('+912560234567')),
+              _buildEmergencyContact('Local Police Station', '+91 2560 234567', Colors.indigo),
               const SizedBox(height: 32),
               // Share Location Button
               ElevatedButton.icon(
-                onPressed: () async {
-                  try {
-                    final pos = await Geolocator.getCurrentPosition();
-                    final String location = 'https://maps.google.com/?q=${pos.latitude},${pos.longitude}';
-                    await launchUrl(Uri.parse(location));
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
-                    }
-                  }
-                },
+                onPressed: () {},
                 icon: const Icon(Icons.location_on),
                 label: const Text('Share My Location'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
+                  minimumSize: const Size(double.infinity, 48),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Call Police Button
+              ElevatedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.phone),
+                label: const Text('Call Police'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
                   minimumSize: const Size(double.infinity, 48),
                 ),
               ),
@@ -177,7 +127,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     );
   }
 
-  Widget _buildEmergencyContact(String name, String number, Color color, VoidCallback onCall) {
+  Widget _buildEmergencyContact(String name, String number, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -216,11 +166,39 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
             ],
           ),
           IconButton(
-            onPressed: onCall,
+            onPressed: () {},
             icon: Icon(Icons.call, color: color),
           ),
         ],
       ),
+    );
+  }
+
+  void _showSOSDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('SOS Alert'),
+          content: const Text('Are you in danger? This will alert emergency services.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('SOS Alert Sent!')),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Send SOS'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

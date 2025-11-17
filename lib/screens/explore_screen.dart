@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/place_model.dart';
 import '../widgets/place_card.dart';
 import '../widgets/filter_chip.dart';
-import '../widgets/chatbot_widget_v2.dart';
-import 'package:geolocator/geolocator.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -13,9 +11,6 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
-  bool _chatbotOpen = false;
-  Position? _userPosition;
-  
   final List<PlaceCategory> _categories = [
     PlaceCategory(id: 'all', name: 'All', isSelected: true),
     PlaceCategory(id: 'famous', name: 'Famous', isSelected: false),
@@ -98,100 +93,71 @@ class _ExploreScreenState extends State<ExploreScreen> {
     });
   }
 
-  Future<void> _loadUserLocation() async {
-    try {
-      final pos = await Geolocator.getCurrentPosition();
-      setState(() => _userPosition = pos);
-    } catch (e) {
-      // Silent fail
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserLocation();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() => _chatbotOpen = !_chatbotOpen);
-        },
-        backgroundColor: Colors.blue,
-        child: const Icon(Icons.chat),
-      ),
-      body: _chatbotOpen && _userPosition != null
-          ? SafeArea(
-              child: ChatbotWidget(
-                userLat: _userPosition!.latitude,
-                userLng: _userPosition!.longitude,
-              ),
-            )
-          : Column(
+      body: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Header
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  color: Colors.white,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Explore Nashik',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {},
-                        icon: Icon(Icons.search, color: Colors.grey[400]),
-                      ),
-                    ],
+                Text(
+                  'Explore Nashik',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
                   ),
                 ),
-
-                // Filter Chips
-                Container(
-                  height: 60,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _categories.length,
-                    itemBuilder: (context, index) {
-                      final category = _categories[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FilterChipWidget(
-                          category: category,
-                          onSelected: _onCategorySelected,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                // Places List
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filteredPlaces.length,
-                    itemBuilder: (context, index) {
-                      final place = _filteredPlaces[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: PlaceCard(place: place),
-                      );
-                    },
-                  ),
+                IconButton(
+                  onPressed: () {},
+                  icon: Icon(Icons.search, color: Colors.grey[400]),
                 ),
               ],
             ),
+          ),
+
+          // Filter Chips
+          Container(
+            height: 60,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _categories.length,
+              itemBuilder: (context, index) {
+                final category = _categories[index];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChipWidget(
+                    category: category,
+                    onSelected: _onCategorySelected,
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Places List
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _filteredPlaces.length,
+              itemBuilder: (context, index) {
+                final place = _filteredPlaces[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: PlaceCard(place: place),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

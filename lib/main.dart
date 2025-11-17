@@ -5,15 +5,11 @@ import 'package:tourist_safety_hub/screens/explore_screen.dart';
 import 'package:tourist_safety_hub/screens/emergency_screen.dart';
 import 'package:tourist_safety_hub/screens/settings_screen_v2.dart';
 import 'package:tourist_safety_hub/screens/incident_report_screen.dart';
-import 'package:tourist_safety_hub/screens/admin_dashboard_screen.dart';
-import 'package:tourist_safety_hub/screens/auth_screen.dart';
 import 'package:tourist_safety_hub/services/notification_service.dart';
 import 'package:tourist_safety_hub/services/api_service.dart';
 import 'package:tourist_safety_hub/services/chat_service.dart';
 import 'package:tourist_safety_hub/services/incident_service.dart';
 import 'package:tourist_safety_hub/services/localization_service.dart';
-import 'package:tourist_safety_hub/services/auth_service.dart';
-import 'package:tourist_safety_hub/services/permissions_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,8 +20,6 @@ void main() async {
   await ChatService.initialize();
   await IncidentService.initIncidents();
   await LocalizationService.initialize();
-  await AuthService.initializeFirebase();
-  await PermissionsService.requestAllPermissions();
   
   runApp(const TouristSafetyHub());
 }
@@ -54,50 +48,8 @@ class TouristSafetyHub extends StatelessWidget {
           ),
         ),
       ),
-      home: const AppHome(),
-      routes: {
-        '/admin': (context) => const AdminDashboardScreen(),
-      },
+      home: const MainNavigationScreen(),
       debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-class AppHome extends StatelessWidget {
-  const AppHome({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: AuthService.isUserLoggedIn(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (snapshot.hasData && snapshot.data == true) {
-          // Check if user is admin
-          return FutureBuilder<Map<String, dynamic>?>(
-            future: AuthService.getUserProfile(),
-            builder: (context, profileSnapshot) {
-              if (profileSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              final isAdmin = profileSnapshot.data?['isAdmin'] ?? false;
-              return isAdmin
-                  ? const AdminDashboardScreen()
-                  : const MainNavigationScreen();
-            },
-          );
-        }
-
-        return const AuthScreen();
-      },
     );
   }
 }
@@ -158,10 +110,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           setState(() {
             _currentIndex = index;
           });
-        },
+        },//ppp
       ),
     );
   }
 }
-
-
