@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/suggestion_model.dart';
+import '../services/chatbot_service.dart';
 
 class ChatbotWidget extends StatefulWidget {
   final VoidCallback onClose;
@@ -11,79 +11,72 @@ class ChatbotWidget extends StatefulWidget {
 }
 
 class _ChatbotWidgetState extends State<ChatbotWidget> {
-  final List<ChatMessage> _messages = [];
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-
-  final List<Suggestion> _suggestions = [
-    Suggestion(id: '1', text: 'Report an incident', type: 'emergency'),
-    Suggestion(id: '2', text: 'How to file an E-FIR?', type: 'info'),
-    Suggestion(id: '3', text: 'Give me safety tips', type: 'info'),
-    Suggestion(id: '4', text: 'Nearby facilities', type: 'location'),
-  ];
+  List<ChatMessage> _messages = [];
+  List<String> _suggestions = [];
 
   @override
   void initState() {
     super.initState();
-    _addBotMessage('Hello! I\'m your AI safety assistant. How can I help you today?');
+    _initializeChatbot();
   }
 
-  void _addBotMessage(String text) {
-    setState(() {
-      _messages.add(ChatMessage(text: text, isUser: false));
-    });
-    _scrollToBottom();
-  }
+  void _initializeChatbot() async {
+    await ChatbotService.initialize();
 
-  void _addUserMessage(String text) {
-    setState(() {
-      _messages.add(ChatMessage(text: text, isUser: true));
+    // Load previous messages
+    _messages = ChatbotService.getMessages();
+    _suggestions = ChatbotService.getSuggestions();
+
+    // If no previous messages, add greeting
+    if (_messages.isEmpty) {
+      await ChatbotService.sendMessage('');
+    }
+
+    // Listen to messages
+    ChatbotService.onMessage((message) {
+      if (mounted) {
+        setState(() {
+          _messages = ChatbotService.getMessages();
+        });
+        _scrollToBottom();
+      }
     });
-    _scrollToBottom();
+
+    setState(() {
+      _messages = _messages;
+      _suggestions = _suggestions;
+    });
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
-  void _handleSendMessage() {
+  void _handleSendMessage() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
 
-    _addUserMessage(text);
     _textController.clear();
-    _getBotResponse(text);
+    await ChatbotService.sendMessage(text);
+    setState(() {
+      _messages = ChatbotService.getMessages();
+    });
   }
 
-  void _handleSuggestionTap(String text) {
-    _addUserMessage(text);
-    _getBotResponse(text);
-  }
-
-  void _getBotResponse(String userMessage) {
-    // Simulate bot thinking
-    Future.delayed(const Duration(seconds: 1), () {
-      String response = "I'm a demo assistant. For real-time help, please contact local authorities via the Emergency page.";
-      
-      if (userMessage.toLowerCase().contains("incident")) {
-        response = "To report an incident, please describe what happened. If this is an emergency, please use the Emergency page.";
-      } else if (userMessage.toLowerCase().contains("fir")) {
-        response = "You can file an E-FIR through the official state police portal. I can provide the link if you need it.";
-      } else if (userMessage.toLowerCase().contains("safety") || userMessage.toLowerCase().contains("tips")) {
-        response = "Safety tips for Nashik: 1. Be aware of your surroundings. 2. Avoid unlit areas at night. 3. Keep valuables secure. 4. Use trusted transportation. 5. Save emergency contacts.";
-      } else if (userMessage.toLowerCase().contains("nearby") || userMessage.toLowerCase().contains("facilities")) {
-        response = "Nearby safe facilities include the Central Bus Stand and the main Police Station. You can find more places on the Explore page.";
-      } else if (userMessage.toLowerCase().contains("emergency")) {
-        response = "For emergencies, please use the SOS button on the Emergency page. It will immediately notify authorities and your emergency contacts.";
-      }
-
-      _addBotMessage(response);
+  void _handleSuggestionTap(String text) async {
+    await ChatbotService.sendMessage(text);
+    setState(() {
+      _messages = ChatbotService.getMessages();
     });
   }
 
@@ -138,45 +131,53 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
 
             // Messages
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final message = _messages[index];
-                  return ChatBubble(message: message);
-                },
-              ),
+              child: _messages.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Loading...',
+                        style: TextStyle(color: Colors.grey[500]),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) {
+                        final message = _messages[index];
+                        return ChatBubble(message: message);
+                      },
+                    ),
             ),
 
             // Suggestions
-            Container(
-              height: 80,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _suggestions.length,
-                itemBuilder: (context, index) {
-                  final suggestion = _suggestions[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ElevatedButton(
-                      onPressed: () => _handleSuggestionTap(suggestion.text),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[50],
-                        foregroundColor: Colors.blue[800],
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(color: Colors.blue[200]!),
+            if (_suggestions.isNotEmpty)
+              Container(
+                height: 80,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _suggestions.length,
+                  itemBuilder: (context, index) {
+                    final suggestion = _suggestions[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ElevatedButton(
+                        onPressed: () => _handleSuggestionTap(suggestion),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[50],
+                          foregroundColor: Colors.blue[800],
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(color: Colors.blue[200]!),
+                          ),
                         ),
+                        child: Text(suggestion),
                       ),
-                      child: Text(suggestion.text),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
 
             // Input
             Container(
@@ -216,13 +217,13 @@ class _ChatbotWidgetState extends State<ChatbotWidget> {
       ),
     );
   }
-}
 
-class ChatMessage {
-  final String text;
-  final bool isUser;
-
-  ChatMessage({required this.text, required this.isUser});
+  @override
+  void dispose() {
+    _textController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 }
 
 class ChatBubble extends StatelessWidget {
@@ -264,7 +265,8 @@ class ChatBubble extends StatelessWidget {
           if (message.isUser)
             const CircleAvatar(
               radius: 16,
-              backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=rajeshkumar'),
+              backgroundColor: Colors.blue,
+              child: Icon(Icons.person, size: 16, color: Colors.white),
             ),
         ],
       ),

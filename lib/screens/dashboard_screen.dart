@@ -3,6 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/location_service.dart';
 import '../services/incident_service.dart';
+import '../widgets/chatbot_widget.dart';
 
 
 class DashboardScreen extends StatefulWidget {
@@ -85,7 +86,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           SingleChildScrollView(
             child: Column(
               children: [
-                // Header with Profile
+                const SizedBox(height: 24), // Top padding
                 Container(
                   padding: const EdgeInsets.all(16),
                   color: Colors.white,
@@ -397,6 +398,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ),
+          // Chatbot Widget
+          if (chatbotOpen)
+            ChatbotWidget(
+              onClose: () {
+                setState(() {
+                  chatbotOpen = false;
+                });
+              },
+            ),
         ],
       ),
       // Bottom navigation is managed by `MainNavigationScreen` in `main.dart`.

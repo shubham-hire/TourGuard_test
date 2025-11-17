@@ -103,12 +103,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: Stack(
-        children: [
+        children: <Widget>[
           SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const SizedBox(height: 24), // Top padding
                 // Header
                 const Text(
                   'Settings',

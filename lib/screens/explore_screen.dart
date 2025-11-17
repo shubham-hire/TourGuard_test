@@ -97,64 +97,69 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      body: Column(
+      body: Stack(
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.white,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Explore Nashik',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
+          Column(
+            children: [
+              const SizedBox(height: 24), // Top padding
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: Colors.white,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Explore Nashik',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {},
+                      icon: Icon(Icons.search, color: Colors.grey[400]),
+                    ),
+                  ],
                 ),
-                IconButton(
-                  onPressed: () {},
-                  icon: Icon(Icons.search, color: Colors.grey[400]),
+              ),
+
+              // Filter Chips
+              Container(
+                height: 60,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _categories.length,
+                  itemBuilder: (context, index) {
+                    final category = _categories[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChipWidget(
+                        category: category,
+                        onSelected: _onCategorySelected,
+                      ),
+                    );
+                  },
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // Filter Chips
-          Container(
-            height: 60,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _categories.length,
-              itemBuilder: (context, index) {
-                final category = _categories[index];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChipWidget(
-                    category: category,
-                    onSelected: _onCategorySelected,
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // Places List
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _filteredPlaces.length,
-              itemBuilder: (context, index) {
-                final place = _filteredPlaces[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: PlaceCard(place: place),
-                );
-              },
-            ),
+              // Places List
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _filteredPlaces.length,
+                  itemBuilder: (context, index) {
+                    final place = _filteredPlaces[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: PlaceCard(place: place),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
