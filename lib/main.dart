@@ -100,6 +100,7 @@ class AppHome extends StatelessWidget {
       },
     );
   }
+}
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});

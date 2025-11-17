@@ -77,6 +77,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -399,6 +400,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ],
+        ),
       ),
       // Bottom navigation is managed by `MainNavigationScreen` in `main.dart`.
     );
