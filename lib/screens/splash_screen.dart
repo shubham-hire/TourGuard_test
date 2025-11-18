@@ -1,187 +1,131 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../core/themes/app_colors.dart';
 
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+class SplashPage extends StatefulWidget {
+  const SplashPage({Key? key}) : super(key: key);
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+
+class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
   @override
   void initState() {
     super.initState();
-    _navigateToHome();
+    
+    // Initialize animation controller
+    _controller = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+    
+    // Create curved animation
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    );
+    
+    // Start animation
+    _controller.forward();
+    
+    // Navigate to home after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      Navigator.pushReplacementNamed(context, '/home');
+    });
   }
 
-  void _navigateToHome() {
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
-      }
-    });
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color.fromARGB(255, 65, 105, 225),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // TourGuard Logo from asset (with fallback)
-            _buildLogo(),
-            const SizedBox(height: 32),
-            // App Name
-            const Text(
-              'TOURGUARD',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0066CC),
-                letterSpacing: 3,
+        child: ScaleTransition(
+          scale: _animation,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // App Logo Container
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.security,
+                  size: 60,
+                  color: AppColors.primaryBlue,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            // Tagline
-            const Text(
-              'Tourist Safety Hub',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-                fontStyle: FontStyle.italic,
+              
+              const SizedBox(height: 30),
+              
+              // App Name
+              Text(
+                'TourGuard',
+                style: GoogleFonts.inter(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
+              
+              const SizedBox(height: 10),
+              
+              // Tagline
+              Text(
+                'Your Safety Companion',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.white.withOpacity(0.8),
+                ),
+              ),
+              
+              //const SizedBox(height: 50),
+              
+              // Loading Indicator
+              /*SizedBox(
+                width: 40,
+                height: 40,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ),*/
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildLogo() {
-    return SizedBox(
-      width: 200,
-      height: 200,
-      child: Image.asset(
-        'assets/images/logo.png',
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          // Fallback to custom painted logo if image not found
-          return CustomPaint(
-            size: const Size(200, 200),
-            painter: TourGuardLogoPainter(),
-          );
-        },
       ),
     );
   }
 }
 
-class TourGuardLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2.5;
-
-    // Define diamond shape points
-    final topPoint = Offset(center.dx, center.dy - radius * 1.2);
-    final rightPoint = Offset(center.dx + radius * 1.1, center.dy + radius * 0.3);
-    final bottomPoint = Offset(center.dx, center.dy + radius * 1.2);
-    final leftPoint = Offset(center.dx - radius * 1.1, center.dy + radius * 0.3);
-    final midTopRight = Offset(center.dx + radius * 0.5, center.dy - radius * 0.4);
-    final midBottomRight = Offset(center.dx + radius * 0.5, center.dy + radius * 0.8);
-
-    // Top-left face (Light Blue)
-    final paint = Paint()..style = PaintingStyle.fill;
-    paint.color = const Color(0xFF42A5F5);
-    canvas.drawPath(
-      Path()
-        ..moveTo(topPoint.dx, topPoint.dy)
-        ..lineTo(center.dx, center.dy)
-        ..lineTo(midTopRight.dx, midTopRight.dy)
-        ..close(),
-      paint,
-    );
-
-    // Top-right face (Darker Blue)
-    paint.color = const Color(0xFF1976D2);
-    canvas.drawPath(
-      Path()
-        ..moveTo(topPoint.dx, topPoint.dy)
-        ..lineTo(midTopRight.dx, midTopRight.dy)
-        ..lineTo(rightPoint.dx, rightPoint.dy)
-        ..close(),
-      paint,
-    );
-
-    // Left face (Dark Blue)
-    paint.color = const Color(0xFF0D47A1);
-    canvas.drawPath(
-      Path()
-        ..moveTo(topPoint.dx, topPoint.dy)
-        ..lineTo(leftPoint.dx, leftPoint.dy)
-        ..lineTo(center.dx, center.dy)
-        ..close(),
-      paint,
-    );
-
-    // Bottom-left face (Gray)
-    paint.color = const Color(0xFF9E9E9E);
-    canvas.drawPath(
-      Path()
-        ..moveTo(center.dx, center.dy)
-        ..lineTo(leftPoint.dx, leftPoint.dy)
-        ..lineTo(bottomPoint.dx, bottomPoint.dy)
-        ..close(),
-      paint,
-    );
-
-    // Bottom-right face (Darker Gray)
-    paint.color = const Color(0xFF616161);
-    canvas.drawPath(
-      Path()
-        ..moveTo(center.dx, center.dy)
-        ..lineTo(bottomPoint.dx, bottomPoint.dy)
-        ..lineTo(midBottomRight.dx, midBottomRight.dy)
-        ..close(),
-      paint,
-    );
-
-    // Right face (Medium Gray)
-    paint.color = const Color(0xFF757575);
-    canvas.drawPath(
-      Path()
-        ..moveTo(center.dx, center.dy)
-        ..lineTo(midBottomRight.dx, midBottomRight.dy)
-        ..lineTo(rightPoint.dx, rightPoint.dy)
-        ..close(),
-      paint,
-    );
-
-    // Draw "TG" text inside diamond
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: 'TG',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 48,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 2,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(
-        center.dx - textPainter.width / 2,
-        center.dy - textPainter.height / 2,
-      ),
-    );
-  }
+// Wrapper class to match main.dart usage
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({Key? key}) : super(key: key);
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  Widget build(BuildContext context) => const SplashPage();
 }

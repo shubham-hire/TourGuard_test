@@ -370,14 +370,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 });
               },
               child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  const Icon(Icons.smart_toy_outlined),
+                  const Icon(Icons.smart_toy_outlined, color: Colors.white),
                   Positioned(
-                    top: 0,
-                    right: 0,
+                    top: -18,
+                    right: -18,
                     child: Container(
-                      width: 16,
-                      height: 16,
+                      width: 20,
+                      height: 20,
                       decoration: BoxDecoration(
                         color: Colors.red,
                         shape: BoxShape.circle,
