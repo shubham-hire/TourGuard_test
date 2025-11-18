@@ -1,8 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-import '../services/location_service.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+import '../services/active_alert_service.dart';
 import '../services/incident_service.dart';
+import '../services/location_service.dart';
+import '../services/safety_score_service.dart';
+import '../services/weather_service.dart';
 import '../widgets/chatbot_widget.dart';
 
 
@@ -14,16 +21,253 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  static const MethodChannel _notifyChannel = MethodChannel('tourapp/notifications');
+  static const double _safetyRadiusKm = 3;
+  StreamSubscription<Position>? _positionSub;
+  bool _notifiedZone = false;
   bool chatbotOpen = false;
   Position? _currentPosition;
-  GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
   final Set<Circle> _circles = {};
+  List<Map<String, dynamic>> _localIncidents = [];
+  Map<String, dynamic>? _safetyScoreData;
+  bool _isSafetyLoading = false;
+  bool _isFetchingSafety = false;
+  Timer? _safetyRefreshTimer;
+  DateTime? _lastSafetyUpdate;
+  String? _currentAddress;
+  Map<String, dynamic>? _weatherData;
+  bool _isWeatherLoading = false;
+  bool _isFetchingWeather = false;
+  DateTime? _lastWeatherUpdate;
+  Map<String, String>? _weatherAlert;
+  DateTime? _lastWeatherAlertUpdate;
+  List<Map<String, String>> _activeAlerts = [];
+  bool _alertsLoading = false;
+  bool _isFetchingAlerts = false;
+  DateTime? _lastAlertUpdate;
 
   @override
   void initState() {
     super.initState();
     _initLocationAndData();
+    _startGeofenceMonitor();
+  }
+
+  // Monitor location and trigger notification on geofence enter
+  void _startGeofenceMonitor() {
+    _positionSub?.cancel();
+    _positionSub = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10),
+    ).listen(_handleLivePosition);
+  }
+
+  void _handleLivePosition(Position pos) {
+    if (!mounted) return;
+    setState(() {
+      _currentPosition = pos;
+    });
+    _evaluateGeofenceStatus(pos);
+    final shouldRefresh = _lastSafetyUpdate == null ||
+        DateTime.now().difference(_lastSafetyUpdate!) >= const Duration(seconds: 45);
+    if (shouldRefresh) {
+      _refreshSafetyScore();
+    }
+    final shouldRefreshWeather = _lastWeatherUpdate == null ||
+        DateTime.now().difference(_lastWeatherUpdate!) >= const Duration(minutes: 2);
+    if (shouldRefreshWeather) {
+      _refreshWeather();
+    }
+    final shouldRefreshAlerts = _lastAlertUpdate == null ||
+        DateTime.now().difference(_lastAlertUpdate!) >= const Duration(minutes: 2);
+    if (shouldRefreshAlerts) {
+      _refreshActiveAlerts();
+    }
+  }
+
+  void _evaluateGeofenceStatus(Position pos) {
+    for (final circle in _circles) {
+      final dist = Geolocator.distanceBetween(
+        pos.latitude,
+        pos.longitude,
+        circle.center.latitude,
+        circle.center.longitude,
+      );
+      if (dist <= circle.radius && !_notifiedZone) {
+        _notifiedZone = true;
+        _showSystemNotification('Entered Zone', 'You entered ${circle.circleId.value}');
+        break;
+      }
+      if (dist > circle.radius) {
+        _notifiedZone = false;
+      }
+    }
+  }
+
+  void _startSafetyRefreshTimer() {
+    _safetyRefreshTimer?.cancel();
+    _safetyRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _refreshSafetyScore();
+      _refreshWeather();
+      _refreshActiveAlerts();
+    });
+  }
+
+  Future<void> _refreshSafetyScore({bool force = false}) async {
+    if (_currentPosition == null) return;
+    if (_isFetchingSafety && !force) return;
+    _isFetchingSafety = true;
+    if (force || _safetyScoreData == null) {
+      setState(() {
+        _isSafetyLoading = true;
+      });
+    }
+    try {
+      final address = await LocationService.getAddressFromCoordinates(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+      );
+      final incidents = await IncidentService.getNearbyIncidents(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        _safetyRadiusKm,
+      );
+      final data = await SafetyScoreService.getLiveSafetyScore(
+        position: _currentPosition!,
+        radiusKm: _safetyRadiusKm,
+        incidents: incidents,
+        address: address,
+      );
+      if (!mounted) return;
+      setState(() {
+        _currentAddress = address;
+        _safetyScoreData = data;
+        _isSafetyLoading = false;
+        _lastSafetyUpdate = DateTime.now();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isSafetyLoading = false;
+      });
+    } finally {
+      _isFetchingSafety = false;
+    }
+  }
+
+  Future<void> _refreshWeather({bool force = false}) async {
+    if (_currentPosition == null) return;
+    if (_isFetchingWeather && !force) return;
+    _isFetchingWeather = true;
+    if (force || _weatherData == null) {
+      setState(() {
+        _isWeatherLoading = true;
+      });
+    }
+    try {
+      // Try OpenWeatherMap first (uses provided API key). Fall back to existing PirateWeather fetch.
+      Map<String, dynamic>? data;
+      final odata = await WeatherService.fetchOpenWeatherCurrent(
+        latitude: _currentPosition!.latitude,
+        longitude: _currentPosition!.longitude,
+      );
+      if (odata != null) {
+        data = {
+          'summary': (odata['description'] ?? '').toString(),
+          'temperature': (odata['temp'] as double?) ?? 0.0,
+          'apparentTemperature': (odata['temp'] as double?) ?? 0.0,
+          'humidity': (odata['humidity'] as double?) ?? 0.0,
+          'precipProbability': (odata['precipProbability'] as double?) ?? 0.0,
+          'windSpeed': (odata['windSpeed'] as double?) ?? 0.0,
+          'icon': odata['icon'],
+          'timestamp': DateTime.now(),
+        };
+      } else {
+        data = await WeatherService.fetchCurrentWeather(
+          latitude: _currentPosition!.latitude,
+          longitude: _currentPosition!.longitude,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _weatherData = data;
+        _isWeatherLoading = false;
+        _lastWeatherUpdate = DateTime.now();
+        _updateWeatherAlert(data!);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isWeatherLoading = false;
+      });
+    } finally {
+      _isFetchingWeather = false;
+    }
+  }
+
+  void _updateWeatherAlert(Map<String, dynamic> weatherData) {
+    final summary = (weatherData['summary'] as String?) ?? 'Weather update';
+    final temp = (weatherData['temperature'] as double?) ?? 0;
+    final precip = (weatherData['precipProbability'] as double?) ?? 0;
+    final wind = (weatherData['windSpeed'] as double?) ?? 0;
+    final severity = precip >= 0.6
+        ? 'danger'
+        : precip >= 0.3 || wind >= 40
+            ? 'caution'
+            : 'safe';
+    final message =
+        '${temp.toStringAsFixed(1)}°C · $summary · Rain ${(precip * 100).round()}%';
+    _weatherAlert = {
+      'title': 'Weather Update',
+      'badge': 'Info',
+      'severity': severity,
+      'message': message,
+    };
+    _lastWeatherAlertUpdate = DateTime.now();
+  }
+
+  Future<void> _refreshActiveAlerts({bool force = false}) async {
+    if (_currentPosition == null) return;
+    if (_isFetchingAlerts && !force) return;
+    if (_localIncidents.isEmpty && _activeAlerts.isNotEmpty && !force) return;
+    _isFetchingAlerts = true;
+    if (force || _activeAlerts.isEmpty) {
+      setState(() {
+        _alertsLoading = true;
+      });
+    }
+    try {
+      final alerts = await ActiveAlertService.generateAlerts(
+        position: _currentPosition!,
+        incidents: _localIncidents,
+        weatherData: _weatherData,
+      );
+      if (!mounted) return;
+      setState(() {
+        _activeAlerts = alerts;
+        _alertsLoading = false;
+        _lastAlertUpdate = DateTime.now();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _alertsLoading = false;
+      });
+    } finally {
+      _isFetchingAlerts = false;
+    }
+  }
+
+  Future<void> _showSystemNotification(String title, String body) async {
+    try {
+      await _notifyChannel.invokeMethod('showNotification', {'title': title, 'body': body});
+    } catch (_) {}
+  }
+  @override
+  void dispose() {
+    _positionSub?.cancel();
+    _safetyRefreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _initLocationAndData() async {
@@ -32,6 +276,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() {
         _currentPosition = pos;
       });
+      await _refreshSafetyScore(force: true);
+      await _refreshWeather(force: true);
+      _startSafetyRefreshTimer();
 
       // Load incidents from local storage to show markers
       final incidents = await IncidentService.getAllIncidents();
@@ -47,6 +294,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ));
         }
       }
+      setState(() {
+        _localIncidents = incidents;
+      });
+      await _refreshActiveAlerts(force: true);
 
       // Predefined geofence circles
       _circles.addAll([
@@ -54,31 +305,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
           circleId: const CircleId('remote_forest'),
           center: LatLng(pos.latitude + 0.01, pos.longitude + 0.02),
           radius: 2000, // meters
-          fillColor: Colors.red.withOpacity(0.1),
-          strokeColor: Colors.red.withOpacity(0.6),
+          fillColor: Colors.red.withValues(alpha: 0.1),
+          strokeColor: Colors.red.withValues(alpha: 0.6),
         ),
         Circle(
           circleId: const CircleId('market_area'),
           center: LatLng(pos.latitude + 0.002, pos.longitude + 0.005),
           radius: 800,
-          fillColor: Colors.orange.withOpacity(0.1),
-          strokeColor: Colors.orange.withOpacity(0.6),
+          fillColor: Colors.orange.withValues(alpha: 0.1),
+          strokeColor: Colors.orange.withValues(alpha: 0.6),
         ),
         Circle(
           circleId: const CircleId('industrial_zone'),
           center: LatLng(pos.latitude - 0.012, pos.longitude - 0.01),
           radius: 1500,
-          fillColor: Colors.purple.withOpacity(0.08),
-          strokeColor: Colors.purple.withOpacity(0.6),
+          fillColor: Colors.purple.withValues(alpha: 0.08),
+          strokeColor: Colors.purple.withValues(alpha: 0.6),
         ),
       ]);
       setState(() {});
+      // Check if user is already inside any zone and trigger notification if so
+      if (_currentPosition != null && _circles.isNotEmpty) {
+        _evaluateGeofenceStatus(_currentPosition!);
+      }
     } catch (e) {
       // ignore
     }
   }
 
+  @override
   Widget build(BuildContext context) {
+    final zoneStatus = _zoneStatusLabel();
+    final timeLabel = _timeLabel();
+    final crowdDensity = _crowdDensityLabel();
+    final weatherLabel = _weatherLabel();
+    final scoreValue = _formatScoreValue();
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: Stack(
@@ -97,11 +358,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           CircleAvatar(
                             radius: 24,
-                            backgroundColor: Colors.blue.withOpacity(0.2),
+                            backgroundColor: Colors.blue.withValues(alpha: 0.2),
                             child: const Text('RK'),
                           ),
                           const SizedBox(width: 12),
-                          Column(
+                          const Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
@@ -136,7 +397,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             child: Container(
                               width: 8,
                               height: 8,
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 color: Colors.red,
                                 shape: BoxShape.circle,
                               ),
@@ -179,7 +440,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Column(
                           children: [
                             Text(
-                              '87',
+                              scoreValue,
                               style: TextStyle(
                                 fontSize: 48,
                                 fontWeight: FontWeight.bold,
@@ -197,13 +458,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _buildSafetyItem('Current Zone', 'SAFE', Colors.green),
+                      _buildSafetyItem('Current Zone', zoneStatus, _zoneStatusColor(zoneStatus)),
                       const SizedBox(height: 12),
-                      _buildSafetyItem('Time', '17:15 PM', Colors.grey),
+                      _buildSafetyItem('Time', timeLabel, Colors.grey),
                       const SizedBox(height: 12),
-                      _buildSafetyItem('Crowd Density', 'MEDIUM', Colors.orange),
+                      _buildSafetyItem('Crowd Density', crowdDensity, _crowdDensityColor(crowdDensity)),
                       const SizedBox(height: 12),
-                      _buildSafetyItem('Weather', 'Clear', Colors.grey),
+                      _buildSafetyItem('Weather', weatherLabel, Colors.grey),
                     ],
                   ),
                 ),
@@ -220,11 +481,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      const Row(
                         children: [
                           Icon(Icons.location_on_outlined, color: Colors.grey),
-                          const SizedBox(width: 8),
-                          const Text(
+                          SizedBox(width: 8),
+                          Text(
                             'Your Location & Nearby Zones',
                             style: TextStyle(
                               fontSize: 16,
@@ -249,14 +510,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                   myLocationEnabled: true,
                                   myLocationButtonEnabled: false,
+                                  mapToolbarEnabled: true,
                                   markers: _markers,
                                   circles: _circles,
-                                  onMapCreated: (controller) {
-                                    _mapController = controller;
-                                  },
                                 ),
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      // Geofence button removed per request
                       const SizedBox(height: 12),
                       // Current Location
                       Container(
@@ -270,16 +531,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: [
                             Icon(Icons.my_location, color: Colors.green[600]),
                             const SizedBox(width: 12),
-                            const Column(
+                            Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   'Current Location',
                                   style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 Text(
-                                  'Nashik, Maharashtra',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                                  _currentAddress ?? 'Detecting address...',
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                                 ),
                               ],
                             ),
@@ -319,11 +580,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
+                          const Row(
                             children: [
-                              const Icon(Icons.warning_amber_rounded, color: Colors.black87),
-                              const SizedBox(width: 8),
-                              const Text(
+                              Icon(Icons.warning_amber_rounded, color: Colors.black87),
+                              SizedBox(width: 8),
+                              Text(
                                 'Active Alerts',
                                 style: TextStyle(
                                   fontSize: 16,
@@ -338,19 +599,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               border: Border.all(color: Colors.grey[300]!),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text(
-                              '3',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                            child: Text(
+                              (_activeAlerts.length + (_weatherAlert != null ? 1 : 0)).toString(),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _buildAlert('Zone Alert', 'Warning', Colors.orange, 'Approaching caution zone - Market Area', '2 min ago'),
-                      const SizedBox(height: 10),
-                      _buildAlert('Security Alert', 'Danger', Colors.red, 'Avoid remote forest area - increased risk level', '1 hour ago'),
-                      const SizedBox(height: 10),
-                      _buildAlert('Weather Update', 'Info', Colors.blue, 'Heavy rainfall expected in 1 hour', '15 min ago'),
+                      if (_alertsLoading)
+                        const Center(child: CircularProgressIndicator())
+                      else if (_activeAlerts.isEmpty && _weatherAlert == null)
+                        const Text(
+                          'No active alerts right now. Stay safe!',
+                          style: TextStyle(color: Colors.grey),
+                        )
+                      else
+                        Column(
+                          children: [
+                            ..._activeAlerts.map(
+                              (alert) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _buildAlert(
+                                  alert['title'] ?? 'Alert',
+                                  alert['badge'] ?? 'Info',
+                                  _alertColor(alert['severity'] ?? 'caution'),
+                                  alert['message'] ?? 'Details unavailable.',
+                                  alert['timeAgo'] ?? 'moments ago',
+                                ),
+                              ),
+                            ),
+                            if (_weatherAlert != null)
+                              _buildAlert(
+                                _weatherAlert!['title'] ?? 'Weather Update',
+                                _weatherAlert!['badge'] ?? 'Info',
+                                _alertColor(_weatherAlert!['severity'] ?? 'caution'),
+                                _weatherAlert!['message'] ?? 'Latest weather data unavailable.',
+                                _weatherAlert!['timeAgo'] ??
+                                    _formatTimeAgo(_lastWeatherAlertUpdate),
+                              ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -378,7 +667,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Container(
                       width: 16,
                       height: 16,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.red,
                         shape: BoxShape.circle,
                       ),
@@ -411,6 +700,115 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       // Bottom navigation is managed by `MainNavigationScreen` in `main.dart`.
     );
+  }
+
+  String _formatScoreValue() {
+    final value = _safetyScoreData?['score'];
+    if (value is num) {
+      final clamped = value.clamp(0, 100);
+      return clamped.round().toString();
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      return value;
+    }
+    return _isSafetyLoading ? '—' : '--';
+  }
+
+  String _zoneStatusLabel() {
+    final value = _safetyScoreData?['zoneStatus'];
+    if (value is String && value.trim().isNotEmpty) {
+      return value.toUpperCase();
+    }
+    return _isSafetyLoading ? 'Updating...' : 'Unknown';
+  }
+
+  String _timeLabel() {
+    final value = _safetyScoreData?['time'];
+    if (value is String && value.trim().isNotEmpty) {
+      return value;
+    }
+    if (_lastSafetyUpdate != null) {
+      return _formatTime(_lastSafetyUpdate!);
+    }
+    return _isSafetyLoading ? 'Updating...' : '--:--';
+  }
+
+  String _crowdDensityLabel() {
+    final value = _safetyScoreData?['crowdDensity'];
+    if (value is String && value.trim().isNotEmpty) {
+      return value.toUpperCase();
+    }
+    return _isSafetyLoading ? 'Calculating...' : 'Unknown';
+  }
+
+  String _weatherLabel() {
+    if (_weatherData != null) {
+      final temp = (_weatherData?['temperature'] as double?) ?? 0;
+      final summary = (_weatherData?['summary'] as String?) ?? 'Unknown';
+      final tempLabel = temp == 0 ? '--' : temp.toStringAsFixed(1);
+      return '$tempLabel°C · $summary';
+    }
+    final value = _safetyScoreData?['weather'];
+    if (value is String && value.trim().isNotEmpty) {
+      return value;
+    }
+    return _isWeatherLoading ? 'Detecting...' : 'Unknown';
+  }
+
+  Color _zoneStatusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'SAFE':
+        return Colors.green;
+      case 'CAUTION':
+        return Colors.orange;
+      case 'DANGER':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _crowdDensityColor(String density) {
+    switch (density.toUpperCase()) {
+      case 'HIGH':
+        return Colors.red;
+      case 'MEDIUM':
+        return Colors.orange;
+      case 'LOW':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _alertColor(String severity) {
+    switch (severity.toLowerCase()) {
+      case 'danger':
+        return Colors.red;
+      case 'caution':
+        return Colors.orange;
+      case 'safe':
+        return Colors.green;
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
+  String _formatTime(DateTime time) {
+    final hours = _twoDigit(time.hour);
+    final minutes = _twoDigit(time.minute);
+    return '$hours:$minutes';
+  }
+
+  String _twoDigit(int value) => value.toString().padLeft(2, '0');
+
+  String _formatTimeAgo(DateTime? time) {
+    if (time == null) return 'moments ago';
+    final diff = DateTime.now().difference(time);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} hr ago';
+    return '${diff.inDays} d ago';
   }
 
   Widget _buildSafetyItem(String label, String value, Color valueColor) {
@@ -477,7 +875,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.2),
+                  color: statusColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -500,7 +898,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.1),
+        color: badgeColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border(
           left: BorderSide(color: badgeColor, width: 4),

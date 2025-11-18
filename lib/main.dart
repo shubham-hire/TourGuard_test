@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tourist_safety_hub/screens/dashboard_screen.dart';
+// geofence_demo is available in the project but not set as the home screen.
 import 'package:tourist_safety_hub/screens/profile_screen.dart';
 import 'package:tourist_safety_hub/screens/explore_screen.dart';
 import 'package:tourist_safety_hub/screens/emergency_screen.dart';
