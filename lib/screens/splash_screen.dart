@@ -57,23 +57,23 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
             children: [
               // App Logo Container
               Container(
-                width: 120,
-                height: 120,
+                width: 200,
+                height: 200,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 30,
+                      offset: const Offset(0, 15),
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.security,
-                  size: 60,
-                  color: AppColors.primaryBlue,
+                padding: const EdgeInsets.all(20),
+                child: Image.asset(
+                  'assets/images/icon.png',
+                  fit: BoxFit.contain,
                 ),
               ),
               
