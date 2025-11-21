@@ -1,0 +1,147 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../data/models/user_model.dart';
+import '../../data/services/auth_service.dart';
+
+class AuthProvider with ChangeNotifier {
+  final AuthService _authService = AuthService();
+  
+  User? _user;
+  bool _isLoading = false;
+  String? _error;
+  List<Map<String, String>> _emergencyContacts = [];
+
+  User? get user => _user;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  List<Map<String, String>> get emergencyContacts => _emergencyContacts;
+
+  // Registration Data
+  String? _registrationType = 'indian'; // 'indian' or 'international'
+  File? _selectedDocument;
+  
+  String? get registrationType => _registrationType;
+  File? get selectedDocument => _selectedDocument;
+
+  void setRegistrationType(String type) {
+    _registrationType = type;
+    _selectedDocument = null; // Reset document when switching type
+    notifyListeners();
+  }
+
+  void setSelectedDocument(File? file) {
+    _selectedDocument = file;
+    notifyListeners();
+  }
+
+  Future<void> checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userData = prefs.getString('user_data');
+    final contactsData = prefs.getStringList('emergency_contacts');
+
+    if (userData != null) {
+      _user = User.fromJson(jsonDecode(userData));
+    }
+    
+    if (contactsData != null) {
+      _emergencyContacts = contactsData
+          .map((e) => Map<String, String>.from(jsonDecode(e)))
+          .toList();
+    }
+    
+    notifyListeners();
+  }
+
+  Future<bool> login(String email, String password) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _authService.login(email, password);
+      _user = User.fromJson(response['user']);
+      await _saveUserToPrefs(_user!);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> register(Map<String, dynamic> data) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _authService.register(data, _selectedDocument);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> verifyOtp(String phone, String otp) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _authService.verifyOtp(phone, otp);
+      _user = User.fromJson(response['user']);
+      await _saveUserToPrefs(_user!);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> logout() async {
+    _user = null;
+    _emergencyContacts = [];
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    notifyListeners();
+  }
+
+  Future<void> _saveUserToPrefs(User user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_data', jsonEncode({
+      'id': user.id,
+      'name': user.name,
+      'email': user.email,
+      'phone': user.phone,
+      'userType': user.userType,
+      'nationality': user.nationality,
+    }));
+  }
+
+  Future<void> addEmergencyContact(String name, String phone) async {
+    _emergencyContacts.add({'name': name, 'phone': phone});
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> encodedList = _emergencyContacts.map((e) => jsonEncode(e)).toList();
+    await prefs.setStringList('emergency_contacts', encodedList);
+    notifyListeners();
+  }
+  
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+}

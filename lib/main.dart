@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:tourguard/screens/splash_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
+import 'core/constants/app_colors.dart';
+import 'presentation/providers/auth_provider.dart';
+import 'presentation/pages/splash_screen.dart';
+import 'presentation/pages/login_screen.dart';
+import 'presentation/pages/registration_screen.dart';
+import 'presentation/pages/otp_screen.dart';
+import 'presentation/pages/success_screen.dart';
 import 'package:tourguard/screens/dashboard_screen.dart';
 // geofence_demo is available in the project but not set as the home screen.
 import 'package:tourguard/screens/profile_screen.dart';
@@ -32,35 +40,58 @@ class TouristSafetyHub extends StatelessWidget {
   Widget build(BuildContext context) {
     // Rebuild the MaterialApp whenever the language changes so that any
     // widgets using tr() pick up the new translations.
-    return ValueListenableBuilder<String>(
-      valueListenable: LocalizationService.languageNotifier,
-      builder: (context, languageCode, _) {
-        return MaterialApp(
-          title: 'TourGuard',
-          theme: ThemeData(
-            primarySwatch: Colors.blue,
-            fontFamily: 'Roboto',
-            useMaterial3: true,
-            scaffoldBackgroundColor: Colors.grey[100],
-            appBarTheme: AppBarTheme(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.grey[800],
-              elevation: 0,
-            ),
-            cardTheme: CardThemeData(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: ValueListenableBuilder<String>(
+        valueListenable: LocalizationService.languageNotifier,
+        builder: (context, languageCode, _) {
+          return MaterialApp(
+            title: 'TourGuard',
+            theme: ThemeData(
+              primarySwatch: Colors.blue,
+              fontFamily: 'Roboto',
+              useMaterial3: true,
+              scaffoldBackgroundColor: Colors.grey[100],
+              appBarTheme: AppBarTheme(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.grey[800],
+                elevation: 0,
+              ),
+              cardTheme: CardThemeData(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
-          ),
-          home: const SplashScreen(),
-          routes: {
-            '/home': (context) => const MainNavigationScreen(),
-          },
-          debugShowCheckedModeBanner: false,
-        );
-      },
+            initialRoute: '/',
+            onGenerateRoute: (settings) {
+              switch (settings.name) {
+                case '/':
+                  return MaterialPageRoute(builder: (_) => SplashScreen());
+                case '/login':
+                  return MaterialPageRoute(builder: (_) => LoginScreen());
+                case '/register':
+                  return MaterialPageRoute(builder: (_) => RegistrationScreen());
+                case '/otp':
+                  final phoneNumber = settings.arguments as String;
+                  return MaterialPageRoute(
+                    builder: (_) => OtpScreen(phoneNumber: phoneNumber),
+                  );
+                case '/success':
+                  return MaterialPageRoute(builder: (_) => SuccessScreen());
+                case '/home':
+                  return MaterialPageRoute(builder: (_) => const MainNavigationScreen());
+                default:
+                  return MaterialPageRoute(builder: (_) => LoginScreen());
+              }
+            },
+            debugShowCheckedModeBanner: false,
+          );
+        },
+      ),
     );
   }
 }

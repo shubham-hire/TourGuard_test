@@ -3,6 +3,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'incident_report_screen.dart';
 import '../services/location_service.dart';
+import 'package:provider/provider.dart';
+import '../presentation/providers/auth_provider.dart';
 import '../services/localization_service.dart';
 
 class EmergencyScreen extends StatefulWidget {
@@ -19,18 +21,50 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     try {
       // Get current location
       final position = await LocationService.getCurrentLocation();
-      final location = {
-        'latitude': position.latitude,
-        'longitude': position.longitude,
-        'timestamp': DateTime.now(),
-        'type': 'SOS',
-      };
+      final locationUrl = 'https://www.google.com/maps/search/?api=1&query=${position.latitude},${position.longitude}';
+      
+      // Get Emergency Contacts
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final contacts = authProvider.emergencyContacts;
+      
+      if (contacts.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No emergency contacts found. Please add them in Profile.')),
+          );
+        }
+        return;
+      }
 
-      // Send SOS alert to Firestore admin dashboard
+      final phoneNumbers = contacts.map((e) => e['phone']).join(',');
+      final message = 'SOS! I need help. My location: $locationUrl';
+      
+      // Send SMS
+      final Uri smsUri = Uri(
+        scheme: 'sms',
+        path: phoneNumbers,
+        queryParameters: <String, String>{
+          'body': message,
+        },
+      );
+
+      if (await canLaunchUrl(smsUri)) {
+        await launchUrl(smsUri);
+      } else {
+        // Fallback for some devices
+         await launchUrl(Uri.parse('sms:$phoneNumbers?body=$message'));
+      }
+
+      // Send SOS alert to Firestore admin dashboard (Keep existing logic)
       await FirebaseFirestore.instance.collection('alerts').add({
         'alert_type': 'SOS',
-        'location': location,
-        'user_id': 'current_user_id',
+        'location': {
+            'latitude': position.latitude,
+            'longitude': position.longitude,
+            'timestamp': DateTime.now(),
+            'type': 'SOS',
+        },
+        'user_id': authProvider.user?.id ?? 'unknown',
         'timestamp': DateTime.now(),
         'status': 'active',
       });
@@ -39,7 +73,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('SOS Alert Sent to Emergency Services!'),
+            content: Text('SOS Alert Sent! Opening SMS...'),
             duration: Duration(seconds: 3),
             backgroundColor: Colors.red,
           ),

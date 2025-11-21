@@ -6,7 +6,7 @@ import '../models/place_model.dart';
 class PlacesApiService {
   // For Android emulator, use 10.0.2.2. For iOS simulator, use localhost.
   // For real device, use your machine's IP address.
-  static String baseUrl = 'http://192.168.1.3:3000/api/places'; 
+  static String baseUrl = 'http://10.239.172.40:3000/api/places'; 
 
   static Future<List<Place>> fetchNearbyPlaces({
     required double latitude,

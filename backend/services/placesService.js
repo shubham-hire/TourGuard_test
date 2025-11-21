@@ -5,7 +5,7 @@ const NodeCache = require('node-cache');
 const placesCache = new NodeCache({ stdTTL: 3600 });
 
 const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
-const BASE_URL = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
+const BASE_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 
 // Mock data for fallback/testing when no API key is present
 const MOCK_PLACES = [
@@ -67,7 +67,7 @@ const MOCK_PLACES = [
 ];
 
 /**
- * Fetch nearby places based on latitude and longitude
+ * Fetch nearby places based on latitude and longitude using Google Places API (New)
  * @param {number} lat Latitude
  * @param {number} lng Longitude
  * @param {number} radius Radius in meters (default 5000)
@@ -75,7 +75,7 @@ const MOCK_PLACES = [
  * @returns {Promise<Array>} List of places
  */
 async function fetchNearbyPlaces(lat, lng, radius = 5000, type = '') {
-  const cacheKey = `places_${lat.toFixed(3)}_${lng.toFixed(3)}_${radius}_${type}`;
+  const cacheKey = `places_v2_${lat.toFixed(3)}_${lng.toFixed(3)}_${radius}_${type}`;
   
   // Check cache first
   const cachedData = placesCache.get(cacheKey);
@@ -94,35 +94,65 @@ async function fetchNearbyPlaces(lat, lng, radius = 5000, type = '') {
   }
 
   try {
-    const params = {
-      location: `${lat},${lng}`,
-      radius: radius,
-      key: GOOGLE_PLACES_API_KEY,
+    console.log(`Fetching from Google Places API (New): ${lat}, ${lng}`);
+
+    // Construct Request Body
+    const requestBody = {
+      locationRestriction: {
+        circle: {
+          center: {
+            latitude: lat,
+            longitude: lng
+          },
+          radius: radius
+        }
+      }
     };
-    
+
+    // Add type filtering if provided
     if (type && type !== 'all') {
-      params.type = type;
+      // Map common legacy types to new API types if necessary, or pass directly
+      // The new API uses specific type strings (e.g., "restaurant", "tourist_attraction")
+      requestBody.includedTypes = [type];
     }
 
-    console.log(`Fetching from Google Places API: ${lat}, ${lng}`);
-    const response = await axios.get(BASE_URL, { params });
-    
-    if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
-      throw new Error(`API Error: ${response.data.status} - ${response.data.error_message || ''}`);
+    // Make POST request
+    const response = await axios.post(BASE_URL, requestBody, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
+        // Request specific fields to optimize response and cost
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos,places.types,places.regularOpeningHours'
+      }
+    });
+
+    // Check if places are returned
+    if (!response.data.places) {
+      console.log('No places found');
+      return [];
     }
 
-    const places = response.data.results.map(place => ({
-      place_id: place.place_id,
-      name: place.name,
+    // Map response to match the existing frontend structure
+    const places = response.data.places.map(place => ({
+      place_id: place.id,
+      name: place.displayName ? place.displayName.text : 'Unknown',
       rating: place.rating || 0,
-      user_ratings_total: place.user_ratings_total || 0,
-      vicinity: place.vicinity,
-      geometry: place.geometry,
-      photos: place.photos ? place.photos.map(p => 
-        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${p.photo_reference}&key=${GOOGLE_PLACES_API_KEY}`
+      user_ratings_total: place.userRatingCount || 0,
+      vicinity: place.formattedAddress || '', // New API uses formattedAddress
+      geometry: {
+        location: {
+          lat: place.location.latitude,
+          lng: place.location.longitude
+        }
+      },
+      // Construct photo URLs for the new API
+      photos: place.photos ? place.photos.map(photo => 
+        `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=400&maxWidthPx=400&key=${GOOGLE_PLACES_API_KEY}`
       ) : [],
-      types: place.types,
-      opening_hours: place.opening_hours
+      types: place.types || [],
+      opening_hours: {
+        open_now: place.regularOpeningHours ? place.regularOpeningHours.openNow : null
+      }
     }));
 
     // Sort by rating (descending)
@@ -133,7 +163,13 @@ async function fetchNearbyPlaces(lat, lng, radius = 5000, type = '') {
 
     return places;
   } catch (error) {
-    console.error('Error fetching places:', error.message);
+    // Enhanced error logging
+    if (error.response) {
+      console.error('API Error Data:', JSON.stringify(error.response.data, null, 2));
+      console.error('API Error Status:', error.response.status);
+    } else {
+      console.error('Error fetching places:', error.message);
+    }
     throw error;
   }
 }

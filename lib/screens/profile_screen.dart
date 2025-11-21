@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/localization_service.dart';
+import '../presentation/providers/auth_provider.dart';
+import '../core/constants/app_colors.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,71 +23,161 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfile() {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.user;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(tr('profile')),
         centerTitle: true,
         backgroundColor: Colors.white,
-        foregroundColor: Colors.grey,
+        foregroundColor: Colors.grey[800],
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout, color: AppColors.error),
+            onPressed: () async {
+              await authProvider.logout();
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+              }
+            },
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              // Profile Avatar
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.blue.withOpacity(0.2),
-                child: const Text('RK', style: TextStyle(fontSize: 32)),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Rajesh Kumar',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const Text(
-                'ID: TID-2025-001234',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              // Profile Info Cards
-              _buildInfoCard(tr('email'), 'rajesh@example.com'),
-              const SizedBox(height: 12),
-              _buildInfoCard(tr('phone'), '+91 98765 43210'),
-              const SizedBox(height: 12),
-              _buildInfoCard(tr('country'), 'India'),
-              const SizedBox(height: 12),
-              _buildInfoCard(tr('member_since'), 'January 2025'),
-              const SizedBox(height: 24),
-              // Emergency Contacts
-              Container(
+      body: user == null
+          ? Center(child: Text('No user data found. Please login.'))
+          : SingleChildScrollView(
+              child: Padding(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red[200]!),
-                ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      tr('emergency_contacts'),
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    // Profile Avatar
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: AppColors.primaryBlue.withOpacity(0.2),
+                      child: Text(
+                        user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                        style: TextStyle(
+                          fontSize: 32,
+                          color: AppColors.primaryBlue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 16),
+                    Text(
+                      user.name,
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'ID: ${user.id}',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 24),
+                    // Profile Info Cards
+                    _buildInfoCard(tr('email'), user.email),
                     const SizedBox(height: 12),
-                    _buildContactItem('Mother', '+91 98765 43211'),
-                    const SizedBox(height: 8),
-                    _buildContactItem('Father', '+91 98765 43212'),
-                    const SizedBox(height: 8),
-                    _buildContactItem('Sister', '+91 98765 43213'),
+                    _buildInfoCard(tr('phone'), user.phone),
+                    const SizedBox(height: 12),
+                    _buildInfoCard(tr('country'), user.nationality ?? 'India'),
+                    const SizedBox(height: 12),
+                    _buildInfoCard('User Type', user.userType.toUpperCase()),
+                    const SizedBox(height: 24),
+                    
+                    // Emergency Contacts
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red[200]!),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                tr('emergency_contacts'),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              if (authProvider.emergencyContacts.isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(Icons.add_circle_outline, color: Colors.red),
+                                  onPressed: () => _showAddContactDialog(context),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (authProvider.emergencyContacts.isEmpty)
+                            Center(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _showAddContactDialog(context),
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add Family Member'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            )
+                          else
+                            ...authProvider.emergencyContacts.map(
+                              (contact) => Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: _buildContactItem(contact['name'] ?? '', contact['phone'] ?? ''),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+    );
+  }
+
+  void _showAddContactDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Emergency Contact'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Name (e.g., Father)'),
+            ),
+            TextField(
+              controller: phoneController,
+              decoration: const InputDecoration(labelText: 'Phone Number'),
+              keyboardType: TextInputType.phone,
+            ),
+          ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (nameController.text.isNotEmpty && phoneController.text.isNotEmpty) {
+                Provider.of<AuthProvider>(context, listen: false)
+                    .addEmergencyContact(nameController.text, phoneController.text);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
       ),
     );
   }

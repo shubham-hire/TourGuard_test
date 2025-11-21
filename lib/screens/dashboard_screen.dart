@@ -20,6 +20,8 @@ import '../utils/constants.dart';
 import '../utils/geofence_helper.dart';
 import '../services/weather_service.dart';
 import '../widgets/chatbot_widget.dart';
+import 'package:provider/provider.dart';
+import '../presentation/providers/auth_provider.dart';
 
 
 class DashboardScreen extends StatefulWidget {
@@ -411,35 +413,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundColor: Colors.blue.withValues(alpha: 0.2),
-                            child: const Text('RK'),
-                          ),
-                          const SizedBox(width: 12),
-                          const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      Consumer<AuthProvider>(
+                        builder: (context, auth, child) {
+                          final user = auth.user;
+                          final name = user?.name ?? 'Guest';
+                          final id = user?.id ?? 'N/A';
+                          return Row(
                             children: [
-                              Text(
-                                'Rajesh Kumar',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey,
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor: Colors.blue.withOpacity(0.2),
+                                child: Text(
+                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[800]),
                                 ),
                               ),
-                              Text(
-                                'ID: TID-2025-001234',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  Text(
+                                    'ID: $id',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                        ],
+                          );
+                        },
                       ),
                       GestureDetector(
                         onTap: () async {
