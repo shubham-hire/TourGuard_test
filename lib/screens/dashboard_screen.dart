@@ -136,10 +136,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _logGeofenceEvent(zoneId: id, zoneName: zoneName, event: 'enter', lat: pos.latitude, lng: pos.longitude);
         // Send user notification
         await NotificationService.showAlertNotification(title: 'Entered Zone', body: 'You entered $zoneName', type: 'geofence_enter');
-        _showGeofencePopup(
-          title: 'Entered Zone',
-          message: 'You entered $zoneName',
-        );
+        // Show popup notification - ensure it's awaited and context is available
+        if (mounted) {
+          await Future.delayed(const Duration(milliseconds: 100)); // Small delay to ensure UI is ready
+          await _showGeofencePopup(
+            title: 'Entered Zone',
+            message: 'You entered $zoneName',
+            isEntry: true,
+          );
+        }
         break;
       }
 
@@ -149,10 +154,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final zoneName = _zoneNameForId(id) ?? id;
         _logGeofenceEvent(zoneId: id, zoneName: zoneName, event: 'exit', lat: pos.latitude, lng: pos.longitude);
         await NotificationService.showAlertNotification(title: 'Exited Zone', body: 'You exited $zoneName', type: 'geofence_exit');
-        _showGeofencePopup(
-          title: 'Exited Zone',
-          message: 'You exited $zoneName',
-        );
+        // Show popup notification - ensure it's awaited and context is available
+        if (mounted) {
+          await Future.delayed(const Duration(milliseconds: 100)); // Small delay to ensure UI is ready
+          await _showGeofencePopup(
+            title: 'Exited Zone',
+            message: 'You exited $zoneName',
+            isEntry: false,
+          );
+        }
         break;
       }
       // No transition: keep state as-is
@@ -1169,23 +1179,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Future<void> _showGeofencePopup({required String title, required String message}) async {
+  Future<void> _showGeofencePopup({
+    required String title,
+    required String message,
+    bool isEntry = true,
+  }) async {
     if (!mounted || _isGeofencePopupVisible) return;
+    
     _isGeofencePopupVisible = true;
+    
+    // Use a small delay to ensure the dialog shows properly
+    await Future.delayed(const Duration(milliseconds: 10));
+    
+    if (!mounted) {
+      _isGeofencePopupVisible = false;
+      return;
+    }
+    
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.black54,
       builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              isEntry ? Icons.location_on : Icons.location_off,
+              color: isEntry ? Colors.green : Colors.orange,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(
+            fontSize: 16,
+          ),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _isGeofencePopupVisible = false;
+            },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              'OK',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
     );
+    
     _isGeofencePopupVisible = false;
   }
 }

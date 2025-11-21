@@ -4,7 +4,8 @@ const NodeCache = require('node-cache');
 // Cache for 1 hour (3600 seconds)
 const placesCache = new NodeCache({ stdTTL: 3600 });
 
-const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
+const GOOGLE_PLACES_API_KEY =
+  process.env.GOOGLE_PLACES_API_KEY || 'AIzaSyAHFoPQPwCSaexzu3JFLb8eHcnSO2LMK5I';
 const BASE_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 
 // Mock data for fallback/testing when no API key is present
@@ -70,11 +71,11 @@ const MOCK_PLACES = [
  * Fetch nearby places based on latitude and longitude using Google Places API (New)
  * @param {number} lat Latitude
  * @param {number} lng Longitude
- * @param {number} radius Radius in meters (default 5000)
+ * @param {number} radius Radius in meters (default 50000 - 50 km)
  * @param {string} type Place type (optional)
  * @returns {Promise<Array>} List of places
  */
-async function fetchNearbyPlaces(lat, lng, radius = 5000, type = '') {
+async function fetchNearbyPlaces(lat, lng, radius = 50000, type = '') {
   const cacheKey = `places_v2_${lat.toFixed(3)}_${lng.toFixed(3)}_${radius}_${type}`;
   
   // Check cache first
@@ -85,7 +86,7 @@ async function fetchNearbyPlaces(lat, lng, radius = 5000, type = '') {
   }
 
   // If no API key, return mock data
-  if (!GOOGLE_PLACES_API_KEY || GOOGLE_PLACES_API_KEY === 'YOUR_API_KEY_HERE') {
+  if (!GOOGLE_PLACES_API_KEY || GOOGLE_PLACES_API_KEY === 'AIzaSyAHFoPQPwCSaexzu3JFLb8eHcnSO2LMK5I') {
     console.log('No valid API key found, returning mock data');
     if (type && type !== 'all') {
       return MOCK_PLACES.filter(place => place.types.includes(type));

@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const placesController = require('./controllers/placesController');
 const authController = require('./controllers/authController');
+const sosController = require('./controllers/sosController');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,6 +16,7 @@ app.use(express.json());
 app.get('/api/places/nearby', placesController.getNearbyPlaces);
 app.post('/api/auth/send-otp', authController.sendOtp);
 app.post('/api/auth/verify-otp', authController.verifyOtp);
+app.post('/api/sos/send', sosController.sendSOS);
 
 // Health check
 app.get('/health', (req, res) => {

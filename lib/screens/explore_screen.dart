@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../models/place_model.dart';
 import '../widgets/place_card.dart';
 import '../widgets/filter_chip.dart';
 import '../widgets/shimmer_place_card.dart';
 import '../services/localization_service.dart';
 import '../services/places_api_service.dart';
+import '../services/location_service.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -21,6 +21,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   Position? _currentPosition;
+  String? _locationStatus;
 
   List<PlaceCategory> get _categories => [
         PlaceCategory(
@@ -55,26 +56,18 @@ class _ExploreScreenState extends State<ExploreScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _locationStatus = null;
     });
 
     try {
-      // Check permissions
-      var status = await Permission.location.status;
-      if (!status.isGranted) {
-        status = await Permission.location.request();
-        if (!status.isGranted) {
-          throw Exception('Location permission denied');
-        }
-      }
+      // Get current location via helper (handles permissions & services)
+      _currentPosition = await LocationService.getCurrentLocation();
 
-      // Get current location
-      _currentPosition = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
-
-      // Fetch places from API
+      // Fetch places from API within 50 km radius
       final places = await PlacesApiService.fetchNearbyPlaces(
         latitude: _currentPosition!.latitude,
         longitude: _currentPosition!.longitude,
+        radius: 50000, // 50 km radius for dynamic suggestions
         type: _selectedCategoryId,
       );
 
@@ -82,6 +75,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
         setState(() {
           _places = places;
           _isLoading = false;
+        });
+      }
+    } on LocationServiceException catch (e) {
+      if (mounted) {
+        setState(() {
+          _locationStatus = e.message;
+          _errorMessage = e.message;
+          _isLoading = false;
+          _places = [];
         });
       }
     } catch (e) {
@@ -137,12 +139,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         ),
                       ),
                       IconButton(
-                        onPressed: _fetchPlaces,
+                        onPressed: () => _fetchPlaces(),
                         icon: Icon(Icons.refresh, color: Colors.grey[400]),
                       ),
                     ],
                   ),
                 ),
+
+                _buildLocationBanner(),
 
                 // Filter Chips
                 Container(
@@ -238,6 +242,81 @@ class _ExploreScreenState extends State<ExploreScreen> {
           child: PlaceCard(place: place),
         );
       },
+    );
+  }
+
+  Widget _buildLocationBanner() {
+    final position = _currentPosition;
+    final locationText = position != null
+        ? '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}'
+        : (_locationStatus ?? 'Detecting your location...');
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.blue[50],
+            ),
+            child: Icon(Icons.my_location, color: Colors.blue[800]),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr('current_location'),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  locationText,
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 13,
+                  ),
+                ),
+                if (_locationStatus != null && position == null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _locationStatus!,
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _isLoading ? null : () => _fetchPlaces(),
+            icon: Icon(Icons.refresh, color: Colors.blue[800]),
+            tooltip: 'Refresh location',
+          ),
+        ],
+      ),
     );
   }
 }

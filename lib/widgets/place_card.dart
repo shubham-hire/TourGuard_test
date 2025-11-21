@@ -9,27 +9,35 @@ class PlaceCard extends StatelessWidget {
 
   Color _getCategoryColor(String category) {
     switch (category) {
+      case 'tourist_attraction':
       case 'famous':
         return Colors.purple;
+      case 'restaurant':
       case 'food':
         return Colors.orange;
+      case 'amusement_park':
       case 'adventure':
         return Colors.red;
+      case 'park':
       case 'hidden-gem':
         return Colors.green;
       default:
-        return Colors.grey;
+        return Colors.blueGrey;
     }
   }
 
   String _getCategoryLabel(String category) {
     switch (category) {
+      case 'tourist_attraction':
       case 'famous':
-        return 'Famous';
+        return 'Famous Spot';
+      case 'restaurant':
       case 'food':
-        return 'Food';
+        return 'Food & Dining';
+      case 'amusement_park':
       case 'adventure':
         return 'Adventure';
+      case 'park':
       case 'hidden-gem':
         return 'Hidden Gem';
       default:
@@ -39,6 +47,7 @@ class PlaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final categoryColor = _getCategoryColor(place.category);
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -89,10 +98,10 @@ class PlaceCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _getCategoryColor(place.category).withOpacity(0.1),
+                        color: categoryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: _getCategoryColor(place.category).withOpacity(0.3),
+                          color: categoryColor.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Text(
@@ -100,7 +109,7 @@ class PlaceCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: _getCategoryColor(place.category),
+                          color: categoryColor,
                         ),
                       ),
                     ),
@@ -117,7 +126,31 @@ class PlaceCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    Row(
+                      children: [
+                        Icon(Icons.star, size: 20, color: Colors.amber[700]),
+                        const SizedBox(width: 4),
+                        Text(
+                          place.rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        if (place.userRatingsTotal > 0) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '(${place.userRatingsTotal})',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                     Text(
                       'Approx. ${place.distance} away',
                       style: TextStyle(
@@ -125,6 +158,29 @@ class PlaceCard extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                         color: Colors.grey[600],
                       ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          place.isOpen ? Icons.circle : Icons.circle_outlined,
+                          size: 12,
+                          color: place.isOpen ? Colors.green : Colors.grey,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          place.isOpen ? 'Open now' : 'Closed',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: place.isOpen ? Colors.green[700] : Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ),
                     GestureDetector(
                       onTap: () {

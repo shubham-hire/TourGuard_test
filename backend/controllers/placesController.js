@@ -14,7 +14,7 @@ async function getNearbyPlaces(req, res) {
 
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lng);
-    const searchRadius = parseInt(radius) || 5000;
+    const searchRadius = parseInt(radius) || 50000; // Default 50 km radius
 
     if (isNaN(latitude) || isNaN(longitude)) {
       return res.status(400).json({ 

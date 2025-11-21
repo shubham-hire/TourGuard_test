@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
 import 'incident_report_screen.dart';
 import '../services/location_service.dart';
 import 'package:provider/provider.dart';
 import '../presentation/providers/auth_provider.dart';
 import '../services/localization_service.dart';
+import '../services/api_service.dart';
+import '../services/api_environment.dart';
 
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
@@ -18,28 +21,64 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   bool _sosPressed = false;
 
   Future<void> _sendSOSAlert() async {
-    try {
-      // Get current location
-      final position = await LocationService.getCurrentLocation();
-      final locationUrl = 'https://www.google.com/maps/search/?api=1&query=${position.latitude},${position.longitude}';
-      
-      // Get Emergency Contacts
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final contacts = authProvider.emergencyContacts;
-      
-      if (contacts.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No emergency contacts found. Please add them in Profile.')),
-          );
-        }
-        return;
+    // Get Emergency Contacts first (fast, no network)
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final contacts = authProvider.emergencyContacts;
+    
+    if (contacts.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No emergency contacts found. Please add them in Profile.')),
+        );
       }
+      return;
+    }
 
-      final phoneNumbers = contacts.map((e) => e['phone']).join(',');
-      final message = 'SOS! I need help. My location: $locationUrl';
-      
-      // Send SMS
+    // Show immediate feedback
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🆘 Sending SOS Alert...'),
+          duration: Duration(seconds: 1),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+
+    // Get location with timeout (don't block on slow GPS)
+    Position? position;
+    try {
+      position = await LocationService.getCurrentLocation()
+          .timeout(const Duration(seconds: 2));
+    } catch (e) {
+      print('Location timeout or error: $e');
+      // Try to get last known position as fallback
+      try {
+        position = await Geolocator.getLastKnownPosition()
+            .timeout(const Duration(milliseconds: 500));
+      } catch (e2) {
+        print('No last known position: $e2');
+        // Continue without location - still send SOS
+      }
+    }
+
+    // Build message with available location
+    String locationUrl = 'Location unavailable';
+    double? lat, lng;
+    
+    if (position != null) {
+      lat = position.latitude;
+      lng = position.longitude;
+      locationUrl = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+    }
+
+    final phoneNumbers = contacts.map((e) => e['phone']).join(',');
+    final message = position != null
+        ? '🆘 SOS! I need immediate help!\n\nMy location: $locationUrl\nCoordinates: $lat, $lng\nTime: ${DateTime.now().toString()}\n\nPlease respond immediately!'
+        : '🆘 SOS! I need immediate help!\n\nTime: ${DateTime.now().toString()}\n\nPlease respond immediately!';
+    
+    // OPEN SMS APP IMMEDIATELY (don't wait for backend)
+    try {
       final Uri smsUri = Uri(
         scheme: 'sms',
         path: phoneNumbers,
@@ -49,42 +88,76 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       );
 
       if (await canLaunchUrl(smsUri)) {
-        await launchUrl(smsUri);
+        await launchUrl(smsUri, mode: LaunchMode.externalApplication);
       } else {
-        // Fallback for some devices
-         await launchUrl(Uri.parse('sms:$phoneNumbers?body=$message'));
-      }
-
-      // Send SOS alert to Firestore admin dashboard (Keep existing logic)
-      await FirebaseFirestore.instance.collection('alerts').add({
-        'alert_type': 'SOS',
-        'location': {
-            'latitude': position.latitude,
-            'longitude': position.longitude,
-            'timestamp': DateTime.now(),
-            'type': 'SOS',
-        },
-        'user_id': authProvider.user?.id ?? 'unknown',
-        'timestamp': DateTime.now(),
-        'status': 'active',
-      });
-
-      // Show success feedback
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('SOS Alert Sent! Opening SMS...'),
-            duration: Duration(seconds: 3),
-            backgroundColor: Colors.red,
-          ),
-        );
+        await launchUrl(Uri.parse('sms:$phoneNumbers?body=${Uri.encodeComponent(message)}'), 
+            mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sending SOS: $e')),
-        );
+      print('Error opening SMS app: $e');
+    }
+
+    // Run backend operations in background (non-blocking)
+    if (position != null) {
+      _sendSOSBackground(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        contacts: contacts,
+        userName: authProvider.user?.name ?? authProvider.user?.email,
+      );
+    } else {
+      // Still try to send to Firestore even without location
+      _sendSOSBackground(
+        latitude: null,
+        longitude: null,
+        contacts: contacts,
+        userName: authProvider.user?.name ?? authProvider.user?.email,
+      );
+    }
+  }
+
+  // Background task - doesn't block UI
+  void _sendSOSBackground({
+    required double? latitude,
+    required double? longitude,
+    required List<Map<String, dynamic>> contacts,
+    String? userName,
+  }) async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = authProvider.user?.id ?? 'unknown';
+      
+      // Send SMS via backend API (fire and forget - no await)
+      if (latitude != null && longitude != null) {
+        ApiService.sendSOS(
+          latitude: latitude,
+          longitude: longitude,
+          emergencyContacts: contacts,
+          userName: userName,
+        ).timeout(const Duration(seconds: 5)).catchError((error) {
+          print('Backend SMS error (non-critical): $error');
+        });
       }
+
+      // Send to Firestore (fire and forget - no await)
+      FirebaseFirestore.instance.collection('alerts').add({
+        'alert_type': 'SOS',
+        if (latitude != null && longitude != null) 'location': {
+          'latitude': latitude,
+          'longitude': longitude,
+          'timestamp': DateTime.now(),
+          'type': 'SOS',
+        },
+        'user_id': userId,
+        'timestamp': DateTime.now(),
+        'status': 'active',
+        'contacts_notified': contacts.length,
+      }).timeout(const Duration(seconds: 3)).catchError((error) {
+        print('Firestore error (non-critical): $error');
+      });
+    } catch (e) {
+      // All background errors are non-critical
+      print('Background SOS task error: $e');
     }
   }
 

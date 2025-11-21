@@ -102,5 +102,13 @@ class DemoData {
       'radius': 1840,
       'color': 0xFFFF0000,
     },
+        {
+      'id': 'YELLOW_ZONE_2',
+      'name': 'Forest zone ',
+      'latitude': 20.010320,
+      'longitude': 73.764101,
+      'radius': 110,
+      'color': 0xFFFFFF00,
+    },
   ];
 }

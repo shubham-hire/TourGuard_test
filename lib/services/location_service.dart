@@ -1,17 +1,43 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
+
+class LocationServiceException implements Exception {
+  final String message;
+  LocationServiceException(this.message);
+
+  @override
+  String toString() => message;
+}
 
 class LocationService {
   static Future<Position> getCurrentLocation() async {
-    // Check permissions
-    final permission = await Permission.location.request();
-    if (permission.isGranted) {
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      await Geolocator.openLocationSettings();
+      throw LocationServiceException(
+        'Location services are disabled. Please enable them to continue.',
       );
-    } else {
-      throw Exception('Location permission denied');
     }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw LocationServiceException(
+          'Location permission denied. Please grant permission to continue.',
+        );
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      await Geolocator.openAppSettings();
+      throw LocationServiceException(
+        'Location permissions are permanently denied. Please enable them from system settings.',
+      );
+    }
+
+    return Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
   }
 
   static Future<String> getAddressFromCoordinates(double lat, double lng) async {

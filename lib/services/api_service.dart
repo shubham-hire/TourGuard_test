@@ -1,9 +1,23 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter/foundation.dart';
+import 'api_environment.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000/api';
+  static String get baseUrl {
+    // Use the same base URL logic as places API
+    final placesBaseUrl = ApiEnvironment.placesBaseUrl;
+    // Extract base URL (remove /api/places)
+    if (placesBaseUrl.contains('/api/places')) {
+      return placesBaseUrl.replaceAll('/api/places', '/api');
+    }
+    // Fallback
+    if (kIsWeb) {
+      return 'http://localhost:3000/api';
+    }
+    return 'http://10.0.2.2:3000/api'; // Android emulator default
+  }
   static const String cacheBoxName = 'apiCache';
 
   static Future<void> initCache() async {
@@ -46,13 +60,13 @@ class ApiService {
   }
 
   // POST request
-  static Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
+  static Future<dynamic> post(String endpoint, Map<String, dynamic> body, {Duration? timeout}) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl$endpoint'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
-      );
+      ).timeout(timeout ?? const Duration(seconds: 10));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body);
@@ -104,5 +118,20 @@ class ApiService {
   // Report incident
   static Future<Map<String, dynamic>> reportIncident(Map<String, dynamic> data) async {
     return await post('/incidents/report', data);
+  }
+
+  // Send SOS alert to emergency contacts (with shorter timeout for speed)
+  static Future<Map<String, dynamic>> sendSOS({
+    required double latitude,
+    required double longitude,
+    required List<Map<String, dynamic>> emergencyContacts,
+    String? userName,
+  }) async {
+    return await post('/sos/send', {
+      'latitude': latitude,
+      'longitude': longitude,
+      'emergencyContacts': emergencyContacts,
+      if (userName != null) 'userName': userName,
+    }, timeout: const Duration(seconds: 3)); // Shorter timeout for faster response
   }
 }

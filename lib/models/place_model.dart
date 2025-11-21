@@ -26,27 +26,63 @@ class Place {
   });
 
   factory Place.fromJson(Map<String, dynamic> json) {
-    final geometry = json['geometry']['location'];
+    final geometry = (json['geometry']?['location']) ?? {};
     final photos = json['photos'] as List<dynamic>?;
-    // Use a placeholder if no photo is available. 
-    // In a real app, you'd construct the Google Places Photo URL here.
-    final photoUrl = (photos != null && photos.isNotEmpty && !photos[0].toString().startsWith('mock_'))
-        ? photos[0].toString()
-        : 'https://placehold.co/400x200/png?text=${Uri.encodeComponent(json['name'] ?? 'Place')}'; 
+    final types = (json['types'] as List<dynamic>?)
+        ?.map((type) => type.toString())
+        .toList();
 
     return Place(
-      id: json['place_id'] ?? '',
+      id: json['place_id'] ?? json['id'] ?? '',
       name: json['name'] ?? 'Unknown Place',
-      description: json['vicinity'] ?? '',
-      imageUrl: photoUrl, // For now using placeholder logic or mock
-      category: (json['types'] as List<dynamic>?)?.first.toString() ?? 'place',
-      distance: '0 km', // Calculated later
+      description: json['vicinity'] ??
+          json['formatted_address'] ??
+          'No description provided',
+      imageUrl: _resolveImageUrl(photos, json['name'] as String?),
+      category: _deriveCategory(types),
+      distance: '0 km', // Calculated after fetch
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      userRatingsTotal: (json['user_ratings_total'] as num?)?.toInt() ?? 0,
+      userRatingsTotal: (json['user_ratings_total'] as num?)?.toInt() ??
+          (json['userRatingsTotal'] as num?)?.toInt() ??
+          0,
       latitude: (geometry['lat'] as num?)?.toDouble() ?? 0.0,
       longitude: (geometry['lng'] as num?)?.toDouble() ?? 0.0,
-      isOpen: json['opening_hours']?['open_now'] ?? false,
+      isOpen: (json['opening_hours']?['open_now'] as bool?) ??
+          (json['openingHours']?['open_now'] as bool?) ??
+          false,
     );
+  }
+
+  static String _resolveImageUrl(
+    List<dynamic>? photos,
+    String? placeName,
+  ) {
+    if (photos != null && photos.isNotEmpty) {
+      final first = photos.first;
+      if (first is String && first.isNotEmpty) {
+        return first;
+      }
+    }
+    final fallback = placeName ?? 'Place';
+    return 'https://placehold.co/400x200/png?text=${Uri.encodeComponent(fallback)}';
+  }
+
+  static String _deriveCategory(List<String>? types) {
+    if (types == null || types.isEmpty) {
+      return 'place';
+    }
+    const orderedTypes = [
+      'tourist_attraction',
+      'restaurant',
+      'amusement_park',
+      'park',
+    ];
+    for (final type in orderedTypes) {
+      if (types.contains(type)) {
+        return type;
+      }
+    }
+    return types.first;
   }
 }
 
