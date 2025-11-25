@@ -1,0 +1,389 @@
+.
+├── BACKEND_SETUP.js
+├── Finaldatabase.sql
+├── WARP.md
+├── analysis_options.yaml
+├── android
+│   ├── app
+│   │   ├── build.gradle.kts
+│   │   └── src
+│   ├── build
+│   │   └── reports
+│   ├── build.gradle.kts
+│   ├── gradle
+│   │   └── wrapper
+│   ├── gradle.properties
+│   ├── gradlew
+│   ├── gradlew.bat
+│   ├── local.properties
+│   └── settings.gradle.kts
+├── assets
+│   ├── icon
+│   │   ├── app_icon.png
+│   │   ├── simple_shield_v3.png
+│   │   ├── tourguard_icon.png
+│   │   └── tourguard_icon_v2.png
+│   └── images
+│       ├── icon.png
+│       ├── icons
+│       └── logo.png
+├── backend
+│   ├── BACKEND_ARCHITECTURE.md
+│   ├── BACKEND_SUMMARY.md
+│   ├── README.md
+│   ├── SECURITY_REPORT.md
+│   ├── SETUP_GUIDE.md
+│   ├── TESTING_GUIDE.md
+│   ├── TEST_REPORT.md
+│   ├── TEST_SECURITY_SUMMARY.md
+│   ├── TWILIO_FIX.md
+│   ├── TWILIO_TROUBLESHOOTING.md
+│   ├── config
+│   │   ├── database.js
+│   │   └── redis.js
+│   ├── controllers
+│   │   ├── alertController.js
+│   │   ├── authController.js
+│   │   ├── incidentController.js
+│   │   ├── placesController.js
+│   │   ├── profileController.js
+│   │   ├── safetyScoreController.js
+│   │   ├── sosController.js
+│   │   └── zoneController.js
+│   ├── jest.config.js
+│   ├── logs
+│   ├── middleware
+│   │   ├── auth.js
+│   │   ├── errorHandler.js
+│   │   ├── upload.js
+│   │   └── validation.js
+│   ├── migrations
+│   │   ├── 001_initial_schema.sql
+│   │   └── add_international_fields.sql
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── routes
+│   │   ├── alerts.js
+│   │   ├── auth.js
+│   │   ├── incidents.js
+│   │   ├── places.js
+│   │   ├── profile.js
+│   │   ├── safetyScore.js
+│   │   ├── sos.js
+│   │   └── zones.js
+│   ├── scripts
+│   │   ├── check_postgis.js
+│   │   ├── check_version.js
+│   │   ├── create_db.js
+│   │   ├── security-audit.js
+│   │   ├── test-twilio.js
+│   │   ├── test_registration_upload.js
+│   │   └── verify_db.js
+│   ├── server.js
+│   ├── services
+│   │   ├── alertService.js
+│   │   ├── incidentService.js
+│   │   ├── placesService.js
+│   │   ├── profileService.js
+│   │   ├── safetyScoreService.js
+│   │   ├── smsService.js
+│   │   ├── sosService.js
+│   │   └── zoneService.js
+│   ├── tests
+│   │   ├── README.md
+│   │   ├── api.test.js
+│   │   ├── integration.test.js
+│   │   ├── security.test.js
+│   │   └── setup.js
+│   ├── uploads
+│   └── utils
+│       ├── constants.js
+│       └── logger.js
+├── build
+│   ├── 0adf201909a37fc7a3cd9aeea142e56c
+│   │   ├── _composite.stamp
+│   │   ├── dart_build.d
+│   │   ├── dart_build.stamp
+│   │   ├── dart_build_result.json
+│   │   ├── gen_dart_plugin_registrant.stamp
+│   │   ├── gen_localizations.stamp
+│   │   └── outputs.json
+│   ├── app
+│   │   ├── deeplink.json
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── kotlin
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── audioplayers_android
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── kotlin
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── be00bfc6c648760d34c439e0f7c20a54.cache.dill.track.dill
+│   ├── cloud_firestore
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── firebase_auth
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── firebase_core
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── fl_location
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── kotlin
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── flutter_activity_recognition
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── kotlin
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── flutter_local_notifications
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── flutter_plugin_android_lifecycle
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── geofence_service
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── kotlin
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── geolocator_android
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── google_maps_flutter_android
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── image_picker_android
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── native_assets
+│   │   └── android
+│   ├── path_provider_android
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── permission_handler_android
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── reports
+│   │   └── problems
+│   ├── shared_preferences_android
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── kotlin
+│   │   ├── outputs
+│   │   └── tmp
+│   ├── sqflite_android
+│   │   ├── generated
+│   │   ├── intermediates
+│   │   ├── outputs
+│   │   └── tmp
+│   └── url_launcher_android
+│       ├── generated
+│       ├── intermediates
+│       ├── outputs
+│       └── tmp
+├── build_error.txt
+├── ios
+│   ├── Flutter
+│   │   ├── AppFrameworkInfo.plist
+│   │   ├── Debug.xcconfig
+│   │   ├── Generated.xcconfig
+│   │   ├── Release.xcconfig
+│   │   ├── ephemeral
+│   │   └── flutter_export_environment.sh
+│   ├── Runner
+│   │   ├── AppDelegate.swift
+│   │   ├── Assets.xcassets
+│   │   ├── Base.lproj
+│   │   ├── GeneratedPluginRegistrant.h
+│   │   ├── GeneratedPluginRegistrant.m
+│   │   ├── Info.plist
+│   │   └── Runner-Bridging-Header.h
+│   ├── Runner.xcodeproj
+│   │   ├── project.pbxproj
+│   │   ├── project.xcworkspace
+│   │   └── xcshareddata
+│   ├── Runner.xcworkspace
+│   │   ├── contents.xcworkspacedata
+│   │   └── xcshareddata
+│   └── RunnerTests
+│       └── RunnerTests.swift
+├── lib
+│   ├── core
+│   │   ├── config
+│   │   ├── constants
+│   │   ├── themes
+│   │   └── utils
+│   ├── data
+│   │   ├── models
+│   │   └── services
+│   ├── main.dart
+│   ├── models
+│   │   ├── alert_model.dart
+│   │   ├── contact_model.dart
+│   │   ├── place_model.dart
+│   │   ├── suggestion_model.dart
+│   │   └── user_model.dart
+│   ├── presentation
+│   │   ├── pages
+│   │   ├── providers
+│   │   └── widgets
+│   ├── screens
+│   │   ├── dashboard_screen.dart
+│   │   ├── emergency_screen.dart
+│   │   ├── explore_screen.dart
+│   │   ├── geofence_demo.dart
+│   │   ├── geofence_events_screen.dart
+│   │   ├── incident_report_screen.dart
+│   │   ├── my_incidents_screen.dart
+│   │   ├── profile_screen.dart
+│   │   ├── settings_screen.dart
+│   │   ├── settings_screen_v2.dart
+│   │   └── splash_screen.dart
+│   ├── services
+│   │   ├── active_alert_service.dart
+│   │   ├── api_environment.dart
+│   │   ├── api_service.dart
+│   │   ├── auth_service.dart
+│   │   ├── blockchain_service.dart
+│   │   ├── chat_service.dart
+│   │   ├── chatbot_service.dart
+│   │   ├── emergency_service.dart
+│   │   ├── family_tracking_service.dart
+│   │   ├── gemini_service.dart
+│   │   ├── geofence_service.dart
+│   │   ├── incident_service.dart
+│   │   ├── localization_service.dart
+│   │   ├── location_service.dart
+│   │   ├── map_service.dart
+│   │   ├── notification_service.dart
+│   │   ├── places_api_service.dart
+│   │   ├── safety_score_service.dart
+│   │   ├── sos_service.dart
+│   │   ├── translation_api.dart
+│   │   └── weather_service.dart
+│   ├── utils
+│   │   ├── constants.dart
+│   │   ├── geofence_helper.dart
+│   │   ├── helpers.dart
+│   │   └── localization_extensions.dart
+│   └── widgets
+│       ├── alert_card.dart
+│       ├── bottom_nav_bar.dart
+│       ├── chatbot_widget.dart
+│       ├── filter_chip.dart
+│       ├── geofence_example.dart
+│       ├── place_card.dart
+│       ├── safety_score_card.dart
+│       ├── setting_tile.dart
+│       ├── shimmer_place_card.dart
+│       └── sos_button.dart
+├── linux
+│   ├── CMakeLists.txt
+│   ├── flutter
+│   │   ├── CMakeLists.txt
+│   │   ├── ephemeral
+│   │   ├── generated_plugin_registrant.cc
+│   │   ├── generated_plugin_registrant.h
+│   │   └── generated_plugins.cmake
+│   └── runner
+│       ├── CMakeLists.txt
+│       ├── main.cc
+│       ├── my_application.cc
+│       └── my_application.h
+├── logs
+│   ├── combined.log
+│   └── error.log
+├── macos
+│   ├── Flutter
+│   │   ├── Flutter-Debug.xcconfig
+│   │   ├── Flutter-Release.xcconfig
+│   │   ├── GeneratedPluginRegistrant.swift
+│   │   └── ephemeral
+│   ├── Runner
+│   │   ├── AppDelegate.swift
+│   │   ├── Assets.xcassets
+│   │   ├── Base.lproj
+│   │   ├── Configs
+│   │   ├── DebugProfile.entitlements
+│   │   ├── Info.plist
+│   │   ├── MainFlutterWindow.swift
+│   │   └── Release.entitlements
+│   ├── Runner.xcodeproj
+│   │   ├── project.pbxproj
+│   │   ├── project.xcworkspace
+│   │   └── xcshareddata
+│   ├── Runner.xcworkspace
+│   │   ├── contents.xcworkspacedata
+│   │   └── xcshareddata
+│   └── RunnerTests
+│       └── RunnerTests.swift
+├── output-onlinepngtools.png
+├── project_structure.txt
+├── pubspec.lock
+├── pubspec.yaml
+├── test
+│   ├── geofence_helper_test.dart
+│   ├── geofence_zones_test.dart
+│   ├── places_api_integration_test.dart
+│   └── widget_test.dart
+├── web
+│   ├── favicon.png
+│   ├── icons
+│   │   ├── Icon-192.png
+│   │   ├── Icon-512.png
+│   │   ├── Icon-maskable-192.png
+│   │   └── Icon-maskable-512.png
+│   ├── index.html
+│   └── manifest.json
+└── windows
+    ├── CMakeLists.txt
+    ├── flutter
+    │   ├── CMakeLists.txt
+    │   ├── ephemeral
+    │   ├── generated_plugin_registrant.cc
+    │   ├── generated_plugin_registrant.h
+    │   └── generated_plugins.cmake
+    └── runner
+        ├── CMakeLists.txt
+        ├── Runner.rc
+        ├── flutter_window.cpp
+        ├── flutter_window.h
+        ├── main.cpp
+        ├── resource.h
+        ├── resources
+        ├── runner.exe.manifest
+        ├── utils.cpp
+        ├── utils.h
+        ├── win32_window.cpp
+        └── win32_window.h
+
+182 directories, 205 files

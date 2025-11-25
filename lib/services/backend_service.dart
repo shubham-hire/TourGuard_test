@@ -8,12 +8,11 @@ class BackendService {
   // Base URL configuration
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://localhost:5000/api';
+      return 'http://localhost:3000/api';
     }
-    // For Android emulator
-    // return 'http://10.0.2.2:5000/api';
-    // For physical device, use your computer's IP address:
-    return 'http://10.38.111.74:5000/api';
+    // For Android physical device or emulator on same network
+    return 'http://10.125.33.168:3000/api'; // Your Mac's IP
+    // If using emulator on same machine, use: http://10.0.2.2:3000/api
   }
 
   static const String _tokenKey = 'auth_token';
@@ -225,6 +224,60 @@ class BackendService {
       throw Exception('Alert creation error: $e');
     }
   }
+
+  /// Send OTP to user's phone
+  static Future<Map<String, dynamic>> sendOtp({
+    required String phone,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/otp/send'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'phone': phone}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return data;
+      } else {
+        throw Exception(data['message'] ?? 'Failed to send OTP');
+      }
+    } catch (e) {
+      throw Exception('Send OTP error: $e');
+    }
+  }
+
+  /// Verify OTP and get hash ID
+  static Future<Map<String, dynamic>> verifyOtp({
+    required String phone,
+    required String otp,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/otp/verify'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'phone': phone,
+          'otp': otp,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true && data['data'] != null) {
+        // Save token and user ID (may be updated)
+        await saveToken(data['data']['token']);
+        await saveUserId(data['data']['id']);
+        return data['data'];
+      } else {
+        throw Exception(data['message'] ?? 'OTP verification failed');
+      }
+    } catch (e) {
+      throw Exception('OTP verification error: $e');
+    }
+  }
+
 
   /// Check if user is authenticated
   static Future<bool> isAuthenticated() async {

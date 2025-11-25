@@ -8,6 +8,7 @@ import 'presentation/pages/login_screen.dart';
 import 'presentation/pages/registration_screen.dart';
 import 'presentation/pages/otp_screen.dart';
 import 'presentation/pages/success_screen.dart';
+import 'presentation/pages/profile_photo_screen.dart';
 import 'package:tourguard/screens/dashboard_screen.dart';
 // geofence_demo is available in the project but not set as the home screen.
 import 'package:tourguard/screens/profile_screen.dart';
@@ -80,8 +81,19 @@ class TouristSafetyHub extends StatelessWidget {
                   return MaterialPageRoute(
                     builder: (_) => OtpScreen(phoneNumber: phoneNumber),
                   );
+                case '/profile-photo':
+                  final args = settings.arguments as Map<String, dynamic>;
+                  return MaterialPageRoute(
+                    builder: (_) => ProfilePhotoScreen(
+                      hashId: args['hashId'],
+                      userName: args['userName'],
+                      phone: args['phone'],
+                    ),
+                  );
                 case '/success':
                   return MaterialPageRoute(builder: (_) => SuccessScreen());
+                case '/dashboard':
+                  return MaterialPageRoute(builder: (_) => const MainNavigationScreen());
                 case '/home':
                   return MaterialPageRoute(builder: (_) => const MainNavigationScreen());
                 default:

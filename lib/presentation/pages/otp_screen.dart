@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
+import '../../services/backend_service.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -66,16 +67,70 @@ class _OtpScreenState extends State<OtpScreen> {
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.verifyOtp(
-      widget.phoneNumber,
-      _otpController.text,
-    );
+    
+    // Show loading
+    setState(() {});
+    
+    try {
+      // Call backend API to verify OTP
+      final result = await BackendService.verifyOtp(
+        phone: widget.phoneNumber,
+        otp: _otpController.text,
+      );
 
-    if (success) {
-      Navigator.pushReplacementNamed(context, '/success');
-    } else {
+      // Show hash ID in a dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('✅ Registration Complete!'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Your Unique Hash ID:'),
+              SizedBox(height: 10),
+              SelectableText(
+                result['hashId'] ?? 'N/A',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryBlue,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                // Navigate directly to dashboard
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/dashboard',
+                  (route) => false,
+                );
+              },
+              child: Text('Continue'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.error ?? 'Verification Failed')),
+        SnackBar(content: Text('Verification failed: $e')),
+      );
+    }
+  }
+
+  void _handleResend() async {
+    try {
+      await BackendService.sendOtp(phone: widget.phoneNumber);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('OTP sent successfully!')),
+      );
+      startTimer();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to resend OTP: $e')),
       );
     }
   }
@@ -135,10 +190,7 @@ class _OtpScreenState extends State<OtpScreen> {
               Center(
                 child: _canResend
                     ? TextButton(
-                        onPressed: () {
-                          // Resend logic here
-                          startTimer();
-                        },
+                        onPressed: _handleResend,
                         child: Text(
                           'Resend OTP',
                           style: TextStyle(color: AppColors.primaryBlue),
