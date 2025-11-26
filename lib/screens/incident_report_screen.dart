@@ -92,10 +92,12 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
           'title': _titleController.text,
           'description': _descriptionController.text,
           'category': _selectedCategory,
+          'urgency': _selectedUrgency,
           'location': {
             'latitude': _latitude,
             'longitude': _longitude,
           },
+          'address': _locationAddress,
           'reportedAt': DateTime.now().toIso8601String(),
         };
 

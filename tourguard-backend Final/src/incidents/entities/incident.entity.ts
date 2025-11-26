@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
-export enum IncidentSeverity { LOW='LOW', MEDIUM='MEDIUM', HIGH='HIGH', CRITICAL='CRITICAL' }
+export enum IncidentSeverity { LOW = 'LOW', MEDIUM = 'MEDIUM', HIGH = 'HIGH', CRITICAL = 'CRITICAL' }
 
 @Entity('incidents')
 export class Incident {
@@ -14,11 +14,11 @@ export class Incident {
   @Column({ nullable: true })
   description: string;
 
-  @Column({ type: 'enum', enum: IncidentSeverity, default: IncidentSeverity.MEDIUM })
+  @Column({ type: 'text', default: IncidentSeverity.MEDIUM })
   severity: IncidentSeverity;
 
-  @Column({ type: 'json', nullable: true })
-  location: { lat: number; lng: number } | null;
+  @Column({ type: 'text', nullable: true })
+  location: string | null; // Store as JSON string
 
   @ManyToOne(() => User, { nullable: true })
   reportedBy: User;

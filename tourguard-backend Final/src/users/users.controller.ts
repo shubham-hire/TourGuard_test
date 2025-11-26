@@ -5,15 +5,34 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { multerConfig } from '../config/multer.config';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@Controller('api/users')
+@Controller('api/user')
 export class UsersController {
   constructor(private usersService: UsersService) { }
 
   @Post('register')
   async register(@Body() dto: CreateUserDto) {
+    // Check if user already exists
+    const existingUser = await this.usersService.findByPhone(dto.phone) ||
+      await this.usersService.findByEmail(dto.email);
+
+    if (existingUser) {
+      throw new HttpException('User already exists with this email or phone', HttpStatus.CONFLICT);
+    }
+
     const created = await this.usersService.create(dto as any);
-    delete (created as any).password;
-    return created;
+    const token = await this.usersService.generateToken(created);
+
+    return {
+      success: true,
+      message: 'Registration successful',
+      data: {
+        id: created.id,
+        name: created.name,
+        email: created.email,
+        phone: created.phone,
+        token,
+      },
+    };
   }
 
   @Get(':id')

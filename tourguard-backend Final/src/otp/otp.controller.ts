@@ -17,18 +17,17 @@ export class OtpController {
             throw new HttpException('Phone number is required', HttpStatus.BAD_REQUEST);
         }
 
-        // Check if user exists with this phone
-        const user = await this.usersService.findByPhone(phone);
-        if (!user) {
-            throw new HttpException('No user found with this phone number', HttpStatus.NOT_FOUND);
-        }
+        // Generate and store OTP (works for both existing and new users)
+        const otp = this.otpService.generateOtp(phone);
 
-        // Generate and store OTP
-        this.otpService.generateOtp(phone);
+        // In production, send SMS here
+        console.log(`📱 OTP for ${phone}: ${otp}`);
 
         return {
             success: true,
             message: 'OTP sent successfully',
+            // Include OTP in response for development (remove in production)
+            data: { otp },
         };
     }
 

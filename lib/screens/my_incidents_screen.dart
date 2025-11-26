@@ -157,7 +157,13 @@ class _MyIncidentsScreenState extends State<MyIncidentsScreen> {
                           const SizedBox(height: 12),
                           _buildInfoRow(
                             'Location',
-                            incident['location']['address'] ?? 'N/A',
+                            (() {
+                              final loc = incident['location'];
+                              if (loc is Map && loc['address'] != null) {
+                                return loc['address'] as String;
+                              }
+                              return 'N/A';
+                            })(),
                           ),
                           const SizedBox(height: 12),
                           const Text(

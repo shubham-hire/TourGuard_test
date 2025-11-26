@@ -67,16 +67,16 @@ class _OtpScreenState extends State<OtpScreen> {
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
-    // Show loading
-    setState(() {});
-    
+
     try {
-      // Call backend API to verify OTP
-      final result = await BackendService.verifyOtp(
-        phone: widget.phoneNumber,
-        otp: _otpController.text,
+      final result = await authProvider.verifyOtp(
+        widget.phoneNumber,
+        _otpController.text,
       );
+
+      if (result == null) {
+        throw Exception('Unable to verify OTP. Please try again.');
+      }
 
       // Show hash ID in a dialog
       showDialog(
@@ -89,7 +89,7 @@ class _OtpScreenState extends State<OtpScreen> {
               Text('Your Unique Hash ID:'),
               SizedBox(height: 10),
               SelectableText(
-                result['hashId'] ?? 'N/A',
+                result['hashId'] ?? result['user']?['hashId'] ?? 'N/A',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,

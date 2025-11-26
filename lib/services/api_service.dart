@@ -3,20 +3,13 @@ import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'api_environment.dart';
+import 'backend_service.dart';
 
 class ApiService {
   static String get baseUrl {
-    // Use the same base URL logic as places API
-    final placesBaseUrl = ApiEnvironment.placesBaseUrl;
-    // Extract base URL (remove /api/places)
-    if (placesBaseUrl.contains('/api/places')) {
-      return placesBaseUrl.replaceAll('/api/places', '/api');
-    }
-    // Fallback
-    if (kIsWeb) {
-      return 'http://localhost:3000/api';
-    }
-    return 'http://10.0.2.2:3000/api'; // Android emulator default
+    // Always align with BackendService to avoid mismatched hosts
+    // (this uses your PC's IP for physical devices, localhost for web)
+    return BackendService.baseUrl;
   }
   static const String cacheBoxName = 'apiCache';
 
@@ -117,7 +110,62 @@ class ApiService {
 
   // Report incident
   static Future<Map<String, dynamic>> reportIncident(Map<String, dynamic> data) async {
-    return await post('/incidents/report', data);
+    // Ensure user is authenticated if possible
+    final token = await BackendService.getToken();
+
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+
+    // Map app payload into backend DTO
+    final location = data['location'] as Map<String, dynamic>?;
+    final urgency = (data['urgency'] as String?) ?? 'Medium';
+
+    String _mapSeverity(String u) {
+      switch (u.toLowerCase()) {
+        case 'critical':
+          return 'CRITICAL';
+        case 'high':
+          return 'HIGH';
+        case 'low':
+          return 'LOW';
+        case 'medium':
+        default:
+          return 'MEDIUM';
+      }
+    }
+
+    final backendDto = {
+      'title': data['title'],
+      'description': data['description'],
+      'severity': _mapSeverity(urgency),
+      // Store location as JSON string on backend
+      'location': jsonEncode({
+        'latitude': location?['latitude'],
+        'longitude': location?['longitude'],
+        'address': data['address'],
+        if (data['userId'] != null) 'userId': data['userId'],
+      }),
+    };
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/incidents'),
+            headers: headers,
+            body: jsonEncode(backendDto),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to report incident: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error: $e');
+    }
   }
 
   // Send SOS alert to emergency contacts (with shorter timeout for speed)

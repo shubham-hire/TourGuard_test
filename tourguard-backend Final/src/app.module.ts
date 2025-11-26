@@ -13,15 +13,10 @@ import { OtpModule } from './otp/otp.module';
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
     TypeOrmModule.forRootAsync({
       useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get('DATABASE_HOST'),
-        port: +config.get('DATABASE_PORT'),
-        username: config.get('DATABASE_USER'),
-        password: config.get('DATABASE_PASSWORD'),
-        database: config.get('DATABASE_NAME'),
+        type: 'sqlite',
+        database: 'database.sqlite',
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: false, // Disable to prevent schema conflicts
-        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        synchronize: true, // Enable for dev to auto-create tables
       }),
       inject: [ConfigService],
     }),

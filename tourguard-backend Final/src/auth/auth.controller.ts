@@ -7,13 +7,27 @@ class LoginDto {
   @IsString() password: string;
 }
 
-@Controller('auth')
+@Controller('api/auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
   async login(@Body() dto: LoginDto) {
     const user = await this.authService.validateUser(dto.email, dto.password);
-    return this.authService.login(user);
+    const authResult = await this.authService.login(user);
+
+    return {
+      success: true,
+      message: 'Login successful',
+      data: {
+        id: authResult.user.id,
+        name: authResult.user.name || '',
+        email: authResult.user.email,
+        phone: authResult.user.phone || '',
+        hashId: authResult.user.hashId || null,
+        role: authResult.user.role,
+        token: authResult.access_token,
+      },
+    };
   }
 }

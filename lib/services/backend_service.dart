@@ -11,7 +11,7 @@ class BackendService {
       return 'http://localhost:3000/api';
     }
     // For Android physical device or emulator on same network
-    return 'http://10.125.33.168:3000/api'; // Your Mac's IP
+    return 'http://10.90.246.74:3000/api'; // Your PC's IP
     // If using emulator on same machine, use: http://10.0.2.2:3000/api
   }
 
@@ -95,7 +95,7 @@ class BackendService {
       }
 
       final response = await http.post(
-        Uri.parse('$baseUrl/user/login'),
+        Uri.parse('$baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           if (email != null) 'email': email,
@@ -278,11 +278,40 @@ class BackendService {
     }
   }
 
-
   /// Check if user is authenticated
   static Future<bool> isAuthenticated() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
   }
-}
 
+  /// Upload profile photo
+  static Future<String> uploadProfilePhoto({required String filePath}) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/user/upload-photo'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(await http.MultipartFile.fromPath('photo', filePath));
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true && data['data'] != null) {
+        return data['data']['photoUrl'];
+      } else {
+        throw Exception(data['message'] ?? 'Failed to upload photo');
+      }
+    } catch (e) {
+      throw Exception('Photo upload error: $e');
+    }
+  }
+}

@@ -14,7 +14,8 @@ export class UsersService {
   ) { }
 
   async create(userData: Partial<User>): Promise<User> {
-    const saltRounds = this.config.get<number>('BCRYPT_SALT') || 10;
+    const saltConfig = this.config.get<string>('BCRYPT_SALT');
+    const saltRounds = Number(saltConfig ?? 10);
     const hashed = await bcrypt.hash(userData.password, saltRounds);
     const user = this.usersRepo.create({ ...userData, password: hashed });
     return this.usersRepo.save(user);

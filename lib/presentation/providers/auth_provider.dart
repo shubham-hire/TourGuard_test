@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/auth_service.dart';
+import '../../services/backend_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
-  
+
   User? _user;
   bool _isLoading = false;
   String? _error;
@@ -21,7 +22,7 @@ class AuthProvider with ChangeNotifier {
   // Registration Data
   String? _registrationType = 'indian'; // 'indian' or 'international'
   File? _selectedDocument;
-  
+
   String? get registrationType => _registrationType;
   File? get selectedDocument => _selectedDocument;
 
@@ -44,13 +45,13 @@ class AuthProvider with ChangeNotifier {
     if (userData != null) {
       _user = User.fromJson(jsonDecode(userData));
     }
-    
+
     if (contactsData != null) {
       _emergencyContacts = contactsData
           .map((e) => Map<String, String>.from(jsonDecode(e)))
           .toList();
     }
-    
+
     notifyListeners();
   }
 
@@ -61,7 +62,8 @@ class AuthProvider with ChangeNotifier {
 
     try {
       final response = await _authService.login(email, password);
-      _user = User.fromJson(response['user']);
+      final normalized = _normalizeUserPayload(response['user']);
+      _user = User.fromJson(normalized);
       await _saveUserToPrefs(_user!);
       _isLoading = false;
       notifyListeners();
@@ -92,23 +94,24 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> verifyOtp(String phone, String otp) async {
+  Future<Map<String, dynamic>?> verifyOtp(String phone, String otp) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       final response = await _authService.verifyOtp(phone, otp);
-      _user = User.fromJson(response['user']);
+      final normalized = _normalizeUserPayload(response['user']);
+      _user = User.fromJson(normalized);
       await _saveUserToPrefs(_user!);
       _isLoading = false;
       notifyListeners();
-      return true;
+      return response;
     } catch (e) {
       _isLoading = false;
       _error = e.toString();
       notifyListeners();
-      return false;
+      return null;
     }
   }
 
@@ -117,31 +120,49 @@ class AuthProvider with ChangeNotifier {
     _emergencyContacts = [];
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    await BackendService.clearCredentials();
     notifyListeners();
   }
 
   Future<void> _saveUserToPrefs(User user) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_data', jsonEncode({
-      'id': user.id,
-      'name': user.name,
-      'email': user.email,
-      'phone': user.phone,
-      'userType': user.userType,
-      'nationality': user.nationality,
-    }));
+    await prefs.setString(
+        'user_data',
+        jsonEncode({
+          'id': user.id,
+          'name': user.name,
+          'email': user.email,
+          'phone': user.phone,
+          'userType': user.userType,
+          'nationality': user.nationality,
+          'hashId': user.hashId,
+        }));
   }
 
   Future<void> addEmergencyContact(String name, String phone) async {
     _emergencyContacts.add({'name': name, 'phone': phone});
     final prefs = await SharedPreferences.getInstance();
-    final List<String> encodedList = _emergencyContacts.map((e) => jsonEncode(e)).toList();
+    final List<String> encodedList =
+        _emergencyContacts.map((e) => jsonEncode(e)).toList();
     await prefs.setStringList('emergency_contacts', encodedList);
     notifyListeners();
   }
-  
+
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  Map<String, dynamic> _normalizeUserPayload(Map<String, dynamic> raw) {
+    return {
+      'id': raw['id'] ?? '',
+      'name': raw['name'] ?? '',
+      'email': raw['email'] ?? '',
+      'phone': raw['phone'] ?? '',
+      'userType': raw['userType'] ?? _registrationType ?? 'indian',
+      'nationality': raw['nationality'],
+      'documentUrl': raw['documentUrl'],
+      'hashId': raw['hashId'],
+    };
   }
 }

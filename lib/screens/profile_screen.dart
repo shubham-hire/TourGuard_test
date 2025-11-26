@@ -29,7 +29,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: Text(tr('profile'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(tr('profile'),
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: const Color(0xFFF5F7FA),
         foregroundColor: Colors.blue[900],
@@ -40,14 +41,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               await authProvider.logout();
               if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/login', (route) => false);
               }
             },
           ),
         ],
       ),
       body: user == null
-          ? Center(child: Text('No user data found. Please login.', style: TextStyle(color: Colors.grey[700], fontSize: 16)))
+          ? Center(
+              child: Text('No user data found. Please login.',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 16)))
           : SingleChildScrollView(
               child: Column(
                 children: [
@@ -85,7 +89,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             radius: 32,
                             backgroundColor: Colors.blue[800],
                             child: Text(
-                              user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                              user.name.isNotEmpty
+                                  ? user.name[0].toUpperCase()
+                                  : '?',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 32,
@@ -109,7 +115,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(height: 4),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.blue[50],
                                 borderRadius: BorderRadius.circular(8),
@@ -143,9 +150,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 12),
                         _buildInfoCard(tr('phone'), user.phone),
                         const SizedBox(height: 12),
-                        _buildInfoCard(tr('country'), user.nationality ?? 'India'),
+                        _buildInfoCard(
+                            tr('country'), user.nationality ?? 'India'),
                         const SizedBox(height: 12),
-                        _buildInfoCard('User Type', user.userType.toUpperCase()),
+                        _buildInfoCard('User Type',
+                            (user.userType ?? 'N/A').toUpperCase()),
                       ],
                     ),
                   ),
@@ -166,10 +175,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             Text(
                               tr('emergency_contacts'),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.add_circle_outline, color: Colors.red),
+                              icon: const Icon(Icons.add_circle_outline,
+                                  color: Colors.red),
                               onPressed: () => _showAddContactDialog(context),
                             ),
                           ],
@@ -191,7 +202,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ...authProvider.emergencyContacts.map(
                             (contact) => Padding(
                               padding: const EdgeInsets.only(bottom: 8.0),
-                              child: _buildContactItem(contact['name'] ?? '', contact['phone'] ?? ''),
+                              child: _buildContactItem(contact['name'] ?? '',
+                                  contact['phone'] ?? ''),
                             ),
                           ),
                       ],
@@ -207,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showAddContactDialog(BuildContext context) {
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -217,7 +229,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Name (e.g., Father)'),
+              decoration:
+                  const InputDecoration(labelText: 'Name (e.g., Father)'),
             ),
             TextField(
               controller: phoneController,
@@ -233,9 +246,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (nameController.text.isNotEmpty && phoneController.text.isNotEmpty) {
+              if (nameController.text.isNotEmpty &&
+                  phoneController.text.isNotEmpty) {
                 Provider.of<AuthProvider>(context, listen: false)
-                    .addEmergencyContact(nameController.text, phoneController.text);
+                    .addEmergencyContact(
+                        nameController.text, phoneController.text);
                 Navigator.pop(context);
               }
             },

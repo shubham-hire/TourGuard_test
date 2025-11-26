@@ -1,0 +1,66 @@
+/* Leaflet styles - must be imported FIRST */
+@import 'leaflet/dist/leaflet.css';
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-navy text-gray-100 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-danger hover:bg-danger-dark text-white font-medium rounded transition-colors;
+  }
+
+  .btn-success {
+    @apply px-4 py-2 bg-success hover:bg-success-dark text-white font-medium rounded transition-colors;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-navy-light hover:bg-navy text-white font-medium rounded transition-colors;
+  }
+
+  .card {
+    @apply bg-navy-light rounded-lg p-4 shadow-lg;
+  }
+
+  .badge-pending {
+    @apply px-2 py-1 text-xs font-semibold rounded-full bg-danger text-white;
+  }
+
+  .badge-acknowledged {
+    @apply px-2 py-1 text-xs font-semibold rounded-full bg-warning text-white;
+  }
+
+  .badge-resolved {
+    @apply px-2 py-1 text-xs font-semibold rounded-full bg-success text-white;
+  }
+}
+
+@layer utilities {
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+
+    0%,
+    100% {
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+    }
+
+    50% {
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+    }
+  }
+
+  .map-container {
+    @apply h-full w-full rounded-lg overflow-hidden;
+  }
+}

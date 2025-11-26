@@ -284,6 +284,28 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
             }
           }());
         }
+
+        // Also log SOS as an incident in the NestJS incidents table
+        unawaited(() async {
+          try {
+            await ApiService.reportIncident({
+              'title': 'SOS Alert',
+              'description':
+                  'SOS triggered by ${userName ?? userId} at $latitude, $longitude',
+              'category': 'SOS',
+              'urgency': 'Critical',
+              'location': {
+                'latitude': latitude,
+                'longitude': longitude,
+              },
+              'address': null,
+              'userId': userId,
+              'reportedAt': DateTime.now().toIso8601String(),
+            });
+          } catch (error) {
+            print('Incident logging error (non-critical): $error');
+          }
+        }());
         
         // Also send to old backend (fire and forget - no await)
         unawaited(() async {

@@ -16,7 +16,7 @@ export class User {
   @Column({ nullable: true })
   name: string;
 
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  @Column({ type: 'text', default: UserRole.USER })
   role: UserRole;
 
   @Column({ nullable: true })
@@ -31,7 +31,7 @@ export class User {
   @Column({ default: false })
   otpVerified: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   lastLogin?: Date;
 
   @CreateDateColumn()

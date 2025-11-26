@@ -1,0 +1,49 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Police Flagged Hotspot",
+        "risk_level": "high",
+        "advisory": "Avoid after dusk; call helpline if routed here."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [91.8795, 25.5780],
+            [91.8840, 25.5780],
+            [91.8840, 25.5825],
+            [91.8795, 25.5825],
+            [91.8795, 25.5780]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Night Curfew Zone",
+        "risk_level": "medium",
+        "advisory": "Escort required between 19:00-05:00."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [91.5600, 25.2600],
+            [91.5680, 25.2600],
+            [91.5680, 25.2665],
+            [91.5600, 25.2665],
+            [91.5600, 25.2600]
+          ]
+        ]
+      }
+    }
+  ]
+}
+
+
+
+

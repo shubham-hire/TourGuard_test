@@ -3,29 +3,32 @@ class User {
   final String name;
   final String email;
   final String phone;
-  final String userType; // 'indian' or 'international'
+  final String? userType; // 'indian' or 'international'
   final String? nationality;
   final String? documentUrl;
+  final String? hashId;
 
   User({
     required this.id,
     required this.name,
     required this.email,
     required this.phone,
-    required this.userType,
+    this.userType,
     this.nationality,
     this.documentUrl,
+    this.hashId,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
-      name: json['name'],
-      email: json['email'],
-      phone: json['phone'],
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      email: json['email'] ?? '',
+      phone: json['phone'] ?? '',
       userType: json['userType'],
       nationality: json['nationality'],
       documentUrl: json['documentUrl'],
+      hashId: json['hashId'],
     );
   }
 
@@ -38,6 +41,7 @@ class User {
       'userType': userType,
       'nationality': nationality,
       'documentUrl': documentUrl,
+      'hashId': hashId,
     };
   }
 }
