@@ -101,35 +101,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(width: 20),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user.name,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.blue[50],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'ID: ${user.id}',
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user.name,
                                 style: const TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
                                   color: Colors.black,
+                                  letterSpacing: 0.5,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'ID: ${user.id}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -154,7 +158,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             tr('country'), user.nationality ?? 'India'),
                         const SizedBox(height: 12),
                         _buildInfoCard('User Type',
-                            (user.userType ?? 'N/A').toUpperCase()),
+                            (user.userType == 'indian' || user.userType == 'domestic'
+                                    ? 'DOMESTIC'
+                                    : (user.userType ?? 'N/A'))
+                                .toUpperCase()),
                       ],
                     ),
                   ),

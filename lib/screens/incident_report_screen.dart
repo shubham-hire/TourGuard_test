@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' show LatLng, Marker, MarkerId, GoogleMapController;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hive/hive.dart';
+import 'package:flutter_map/flutter_map.dart' hide Marker;
+import 'package:flutter_map/src/layer/marker_layer/marker_layer.dart' as flutter_map_markers show Marker;
+import 'package:latlong2/latlong.dart' as latlong;
 import '../services/incident_service.dart';
 import '../services/location_service.dart';
 import '../services/api_service.dart';
 import '../services/localization_service.dart';
+import '../widgets/offline_map_widget.dart';
 
 class IncidentReportScreen extends StatefulWidget {
   const IncidentReportScreen({Key? key}) : super(key: key);
@@ -48,6 +52,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   @override
   void initState() {
     super.initState();
+    _flutterMapController = MapController();
     _getCurrentLocation();
   }
 
@@ -71,15 +76,25 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   }
 
   GoogleMapController? _mapController;
+  MapController? _flutterMapController;
   final Set<Marker> _mapMarkers = {};
+  List<flutter_map_markers.Marker> _flutterMapMarkers = [];
 
-  void _onMapTap(LatLng pos) {
+  void _onMapTap(TapPosition tapPosition, latlong.LatLng pos) {
     setState(() {
       _latitude = pos.latitude;
       _longitude = pos.longitude;
       _locationAddress = 'Lat: ${_latitude.toStringAsFixed(4)}, Lng: ${_longitude.toStringAsFixed(4)}';
       _mapMarkers.clear();
-      _mapMarkers.add(Marker(markerId: const MarkerId('selected'), position: pos));
+      _mapMarkers.add(Marker(markerId: const MarkerId('selected'), position: LatLng(_latitude, _longitude)));
+      _flutterMapMarkers = [
+        flutter_map_markers.Marker(
+          point: pos,
+          width: 40,
+          height: 40,
+          child: const Icon(Icons.location_on, color: Colors.red, size: 40),
+        ),
+      ];
     });
   }
 
@@ -356,15 +371,14 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                           ? const Center(child: CircularProgressIndicator())
                           : ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: GoogleMap(
+                              child: OfflineMapWidget(
+                                center: latlong.LatLng(_latitude, _longitude),
+                                zoom: 15.0,
+                                mapController: _flutterMapController,
+                                markers: _flutterMapMarkers,
                                 onTap: _onMapTap,
-                                initialCameraPosition: CameraPosition(
-                                  target: LatLng(_latitude, _longitude),
-                                  zoom: 15,
-                                ),
-                                markers: _mapMarkers,
                                 myLocationEnabled: true,
-                                onMapCreated: (c) => _mapController = c,
+                                currentLocation: latlong.LatLng(_latitude, _longitude),
                               ),
                             ),
                     ),
@@ -385,10 +399,18 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                     ElevatedButton.icon(
                       onPressed: () async {
                         await _getCurrentLocation();
-                        if (_mapController != null && _latitude != 0.0) {
-                          _mapController!.animateCamera(CameraUpdate.newLatLng(LatLng(_latitude, _longitude)));
+                        if (_latitude != 0.0) {
+                          _flutterMapController?.move(latlong.LatLng(_latitude, _longitude), 15.0);
                           _mapMarkers.clear();
                           _mapMarkers.add(Marker(markerId: const MarkerId('selected'), position: LatLng(_latitude, _longitude)));
+                          _flutterMapMarkers = [
+                            flutter_map_markers.Marker(
+                              point: latlong.LatLng(_latitude, _longitude),
+                              width: 40,
+                              height: 40,
+                              child: const Icon(Icons.location_on, color: Colors.red, size: 40),
+                            ),
+                          ];
                           setState(() {});
                         }
                       },

@@ -125,15 +125,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         children: [
                           Expanded(
                             child: GestureDetector(
-                              onTap: () => auth.setRegistrationType('indian'),
+                                onTap: () => auth.setRegistrationType('domestic'),
                               child: Container(
                                 padding: EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: auth.registrationType == 'indian'
+                                  color: auth.registrationType == 'domestic'
                                       ? AppColors.white
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(8),
-                                  boxShadow: auth.registrationType == 'indian'
+                                  boxShadow: auth.registrationType == 'domestic'
                                       ? [
                                           BoxShadow(
                                             color: Colors.black.withOpacity(0.05),
@@ -145,10 +145,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 ),
                                 child: Center(
                                   child: Text(
-                                    'Indian Tourist',
+                                    'Domestic',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      color: auth.registrationType == 'indian'
+                                      color: auth.registrationType == 'domestic'
                                           ? AppColors.primaryBlue
                                           : AppColors.grey,
                                     ),
@@ -280,7 +280,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
                     // Document Upload
                     Text(
-                      auth.registrationType == 'indian' 
+                      auth.registrationType == 'domestic' 
                           ? 'Upload Aadhaar Card' 
                           : 'Upload Passport Photo',
                       style: TextStyle(

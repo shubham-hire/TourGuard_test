@@ -8,8 +8,12 @@ import 'package:hive/hive.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/notification_service.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' show GoogleMapController, LatLng, Marker, MarkerId, Circle, CircleId, CameraPosition, CameraUpdate, BitmapDescriptor, InfoWindow;
+import 'package:flutter_map/flutter_map.dart' hide Marker;
+import 'package:latlong2/latlong.dart' as latlong;
 import 'geofence_events_screen.dart';
+import '../widgets/offline_map_widget.dart';
+import '../services/offline_map_service.dart';
 
 import '../services/active_alert_service.dart';
 import '../services/incident_service.dart';
@@ -64,6 +68,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _alertsLoading = false;
   bool _isFetchingAlerts = false;
   DateTime? _lastAlertUpdate;
+  // Map enlarge state
+  bool _isMapEnlarged = false;
+  GoogleMapController? _mapController;
+  MapController? _flutterMapController;
   // Civic Sense carousel assets and controller
   final List<String> _civicImagePaths = [
     'assets/civic_sense/civic1.png',
@@ -77,6 +85,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    _flutterMapController = MapController();
     _initLocationAndData();
     _startGeofenceMonitor();
     _civicScrollController = ScrollController();
@@ -102,30 +111,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _startGeofenceMonitor() {
     _positionSub?.cancel();
     _positionSub = Geolocator.getPositionStream(
-      // Increase distanceFilter to reduce update frequency and CPU work
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 50),
+      // Use best accuracy with minimal distance filter for live tracking
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0, // Update on every movement for live tracking
+        timeLimit: null, // No time limit
+      ),
     ).listen(_handleLivePosition);
   }
 
   void _handleLivePosition(Position pos) {
     if (!mounted) return;
-    // Ignore very small movements to avoid excessive UI rebuilds and network calls
-    if (_lastProcessedPosition != null) {
-      final moved = Geolocator.distanceBetween(
-        _lastProcessedPosition!.latitude,
-        _lastProcessedPosition!.longitude,
-        pos.latitude,
-        pos.longitude,
-      );
-      if (moved < 5) {
-        return;
-      }
-    }
+    
+    // Update position immediately for live tracking (no movement threshold)
     _lastProcessedPosition = pos;
-    setState(() {
-      _currentPosition = pos;
-    });
-    _evaluateGeofenceStatus(pos);
+    
+    // Update state immediately for smooth map updates - this will update the location marker
+    if (mounted) {
+      setState(() {
+        _currentPosition = pos;
+      });
+    }
+    
+    // Evaluate geofence status (non-blocking)
+    _evaluateGeofenceStatus(pos).catchError((e) => debugPrint('Geofence error: $e'));
     
     // Send location update to backend (non-blocking)
     _sendLocationToBackend(pos);
@@ -195,8 +204,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (isInside && !previous) {
         _zoneStates[id] = true;
         final zoneName = _zoneNameForId(id) ?? id;
-        // Persist event to Hive
-        _logGeofenceEvent(zoneId: id, zoneName: zoneName, event: 'enter', lat: pos.latitude, lng: pos.longitude);
+        
         // Check zone type and update safety score
         String zoneType = '';
         if (zoneName.toLowerCase().contains('red') || zoneName.toLowerCase().contains('danger')) {
@@ -204,6 +212,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
         } else if (zoneName.toLowerCase().contains('yellow') || zoneName.toLowerCase().contains('caution')) {
           zoneType = 'yellow';
         }
+        
+        // Prepare notification immediately
+        String notificationTitle = '⚠️ Entered Zone';
+        String notificationBody = 'You entered $zoneName';
+        if (zoneType == 'red' || zoneName.toLowerCase().contains('danger')) {
+          notificationTitle = '🚨 Entered Danger Zone!';
+          notificationBody = '⚠️ WARNING: You entered $zoneName - High risk area!';
+        } else if (zoneType == 'yellow' || zoneName.toLowerCase().contains('caution') || zoneName.toLowerCase().contains('forest')) {
+          notificationTitle = '⚠️ Entered Caution Zone';
+          notificationBody = 'You entered $zoneName - Exercise caution';
+        }
+        
+        // Show notification immediately (fire and forget - non-blocking)
+        NotificationService.showAlertNotification(
+          title: notificationTitle,
+          body: notificationBody,
+          type: 'geofence_enter',
+        ).catchError((e) => debugPrint('Notification error: $e'));
+        
+        // Update safety score
         if (zoneType.isNotEmpty && _safetyScoreData != null && _safetyScoreData!['score'] is num) {
           setState(() {
             if (zoneType == 'red') {
@@ -213,16 +241,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
             }
           });
         }
-        // Send user notification
-        await NotificationService.showAlertNotification(title: 'Entered Zone', body: 'You entered $zoneName', type: 'geofence_enter');
-        // Show popup notification - ensure it's awaited and context is available
+        
+        // Log event asynchronously (non-blocking)
+        _logGeofenceEvent(zoneId: id, zoneName: zoneName, event: 'enter', lat: pos.latitude, lng: pos.longitude)
+            .catchError((e) => debugPrint('Log error: $e'));
+        
+        // Show popup notification (non-blocking)
         if (mounted) {
-          await Future.delayed(const Duration(milliseconds: 100)); // Small delay to ensure UI is ready
-          await _showGeofencePopup(
+          _showGeofencePopup(
             title: 'Entered Zone',
             message: 'You entered $zoneName',
             isEntry: true,
-          );
+          ).catchError((e) => debugPrint('Popup error: $e'));
         }
         break;
       }
@@ -231,16 +261,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!isInside && previous) {
         _zoneStates[id] = false;
         final zoneName = _zoneNameForId(id) ?? id;
-        _logGeofenceEvent(zoneId: id, zoneName: zoneName, event: 'exit', lat: pos.latitude, lng: pos.longitude);
-        await NotificationService.showAlertNotification(title: 'Exited Zone', body: 'You exited $zoneName', type: 'geofence_exit');
-        // Show popup notification - ensure it's awaited and context is available
+        
+        // Determine zone type for notification
+        String zoneType = '';
+        if (zoneName.toLowerCase().contains('red') || zoneName.toLowerCase().contains('danger')) {
+          zoneType = 'red';
+        } else if (zoneName.toLowerCase().contains('yellow') || zoneName.toLowerCase().contains('caution') || zoneName.toLowerCase().contains('forest')) {
+          zoneType = 'yellow';
+        }
+        
+        // Prepare notification immediately
+        String notificationTitle = '✅ Exited Zone';
+        String notificationBody = 'You exited $zoneName';
+        if (zoneType == 'red' || zoneName.toLowerCase().contains('danger')) {
+          notificationTitle = '✅ Exited Danger Zone';
+          notificationBody = 'You safely exited $zoneName';
+        } else if (zoneType == 'yellow' || zoneName.toLowerCase().contains('caution') || zoneName.toLowerCase().contains('forest')) {
+          notificationTitle = '✅ Exited Caution Zone';
+          notificationBody = 'You exited $zoneName';
+        }
+        
+        // Show notification immediately (fire and forget - non-blocking)
+        NotificationService.showAlertNotification(
+          title: notificationTitle,
+          body: notificationBody,
+          type: 'geofence_exit',
+        ).catchError((e) => debugPrint('Notification error: $e'));
+        
+        // Log event asynchronously (non-blocking)
+        _logGeofenceEvent(zoneId: id, zoneName: zoneName, event: 'exit', lat: pos.latitude, lng: pos.longitude)
+            .catchError((e) => debugPrint('Log error: $e'));
+        
+        // Show popup notification (non-blocking)
         if (mounted) {
-          await Future.delayed(const Duration(milliseconds: 100)); // Small delay to ensure UI is ready
-          await _showGeofencePopup(
+          _showGeofencePopup(
             title: 'Exited Zone',
             message: 'You exited $zoneName',
             isEntry: false,
-          );
+          ).catchError((e) => debugPrint('Popup error: $e'));
         }
         break;
       }
@@ -531,71 +589,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Consumer<AuthProvider>(
-                        builder: (context, auth, child) {
-                          final user = auth.user;
-                          final name = user?.name ?? 'Guest';
-                          final id = user?.id ?? 'N/A';
-                          return Row(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.blue[800],
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.blue.withOpacity(0.15),
-                                      blurRadius: 8,
-                                      offset: Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: CircleAvatar(
-                                  radius: 28,
-                                  backgroundColor: Colors.blue[800],
-                                  child: Text(
-                                    name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 28,
-                                      color: Colors.white,
-                                    ),
+                      Expanded(
+                        child: Consumer<AuthProvider>(
+                          builder: (context, auth, child) {
+                            final user = auth.user;
+                            final name = user?.name ?? 'Guest';
+                            final id = user?.id ?? 'N/A';
+                            return Row(
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.blue[800],
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.blue.withOpacity(0.15),
+                                        blurRadius: 8,
+                                        offset: Offset(0, 4),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    name,
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue[50],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                                  child: CircleAvatar(
+                                    radius: 28,
+                                    backgroundColor: Colors.blue[800],
                                     child: Text(
-                                      'ID: $id',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.black,
+                                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 28,
+                                        color: Colors.white,
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
-                          );
-                        },
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        name,
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                          letterSpacing: 0.5,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue[50],
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          'ID: $id',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.black,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ),
                       GestureDetector(
                         onTap: () async {
@@ -720,7 +784,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: SizedBox(
-                          height: 300,
+                          height: _isMapEnlarged ? 600 : 300,
                           child: Stack(
                             children: [
                               Positioned.fill(
@@ -728,16 +792,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   color: Colors.grey[300],
                                   child: _currentPosition == null
                                       ? const Center(child: CircularProgressIndicator())
-                                      : GoogleMap(
-                                          initialCameraPosition: CameraPosition(
-                                            target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                                            zoom: 14,
-                                          ),
+                                      : OfflineMapWidget(
+                                          center: latlong.LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                                          zoom: 14.0,
+                                          mapController: _flutterMapController,
+                                          markers: MapMarkerConverter.convertGoogleMarkersToFlutterMap(_markers),
+                                          circles: MapCircleConverter.convertGoogleCirclesToFlutterMap(_circles),
                                           myLocationEnabled: true,
-                                          myLocationButtonEnabled: false,
-                                          mapToolbarEnabled: true,
-                                          markers: _markers,
-                                          circles: _circles,
+                                          currentLocation: latlong.LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
                                         ),
                                 ),
                               ),
@@ -750,6 +812,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       icon: Icons.navigation_outlined,
                                       tooltip: tr('start_navigation'),
                                       onTap: () => _openTurnByTurnNavigation(context),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildMapActionButton(
+                                      icon: _isMapEnlarged ? Icons.fullscreen_exit : Icons.fullscreen,
+                                      tooltip: _isMapEnlarged ? 'Collapse Map' : 'Enlarge Map',
+                                      onTap: () {
+                                        setState(() {
+                                          _isMapEnlarged = !_isMapEnlarged;
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildMapActionButton(
+                                      icon: Icons.download,
+                                      tooltip: 'Download Maps for Offline Use',
+                                      onTap: () => _showDownloadMapDialog(context),
                                     ),
                                   ],
                                 ),
@@ -1408,6 +1486,113 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Future<void> _showDownloadMapDialog(BuildContext context) async {
+    if (_currentPosition == null) {
+      _showMapMessage(context, tr('location_unavailable'));
+      return;
+    }
+
+    double selectedRadius = 5.0; // Default 5km radius
+    bool isDownloading = false;
+    int downloadedTiles = 0;
+    int totalTiles = 0;
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Download Maps for Offline Use'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Select the area radius to download. Larger areas will take more time and storage space.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Text('Radius: ${selectedRadius.toStringAsFixed(1)} km'),
+              Slider(
+                value: selectedRadius,
+                min: 1.0,
+                max: 50.0,
+                divisions: 49,
+                label: '${selectedRadius.toStringAsFixed(1)} km',
+                onChanged: isDownloading
+                    ? null
+                    : (value) {
+                        setDialogState(() {
+                          selectedRadius = value;
+                        });
+                      },
+              ),
+              if (isDownloading) ...[
+                const SizedBox(height: 16),
+                LinearProgressIndicator(
+                  value: totalTiles > 0 ? downloadedTiles / totalTiles : 0,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Downloading: $downloadedTiles / $totalTiles tiles',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            if (!isDownloading)
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+            if (!isDownloading)
+              ElevatedButton(
+                onPressed: () async {
+                  setDialogState(() {
+                    isDownloading = true;
+                  });
+
+                  try {
+                    await OfflineMapService.preDownloadRegion(
+                      center: latlong.LatLng(
+                        _currentPosition!.latitude,
+                        _currentPosition!.longitude,
+                      ),
+                      radiusKm: selectedRadius,
+                      onProgress: (downloaded, total) {
+                        if (mounted) {
+                          setDialogState(() {
+                            downloadedTiles = downloaded;
+                            totalTiles = total;
+                          });
+                        }
+                      },
+                    );
+
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                      _showMapMessage(
+                        context,
+                        'Maps downloaded successfully! You can now view them offline.',
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                      _showMapMessage(
+                        context,
+                        'Error downloading maps: ${e.toString()}',
+                      );
+                    }
+                  }
+                },
+                child: const Text('Download'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showGeofencePopup({
     required String title,
     required String message,
@@ -1416,9 +1601,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!mounted || _isGeofencePopupVisible) return;
     
     _isGeofencePopupVisible = true;
-    
-    // Use a small delay to ensure the dialog shows properly
-    await Future.delayed(const Duration(milliseconds: 10));
     
     if (!mounted) {
       _isGeofencePopupVisible = false;

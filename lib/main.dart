@@ -20,6 +20,7 @@ import 'package:tourguard/services/api_service.dart';
 import 'package:tourguard/services/chat_service.dart';
 import 'package:tourguard/services/incident_service.dart';
 import 'package:tourguard/services/localization_service.dart';
+import 'package:tourguard/services/offline_map_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,7 @@ void main() async {
   await ChatService.initialize();
   await IncidentService.initIncidents();
   await LocalizationService.initialize();
+  await OfflineMapService.initialize();
   
   runApp(const TouristSafetyHub());
 }

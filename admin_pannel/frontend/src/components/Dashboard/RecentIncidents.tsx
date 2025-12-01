@@ -104,3 +104,5 @@ const RecentIncidents: React.FC<RecentIncidentsProps> = ({
 
 export default RecentIncidents;
 
+
+

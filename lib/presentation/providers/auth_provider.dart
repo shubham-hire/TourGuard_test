@@ -20,7 +20,7 @@ class AuthProvider with ChangeNotifier {
   List<Map<String, String>> get emergencyContacts => _emergencyContacts;
 
   // Registration Data
-  String? _registrationType = 'indian'; // 'indian' or 'international'
+  String? _registrationType = 'domestic'; // 'domestic' or 'international'
   File? _selectedDocument;
 
   String? get registrationType => _registrationType;
@@ -159,7 +159,7 @@ class AuthProvider with ChangeNotifier {
       'name': raw['name'] ?? '',
       'email': raw['email'] ?? '',
       'phone': raw['phone'] ?? '',
-      'userType': raw['userType'] ?? _registrationType ?? 'indian',
+      'userType': raw['userType'] ?? _registrationType ?? 'domestic',
       'nationality': raw['nationality'],
       'documentUrl': raw['documentUrl'],
       'hashId': raw['hashId'],
