@@ -201,11 +201,20 @@ class IncidentService {
         final raw = box.get(key);
         if (raw is! Map) continue;
         Map<String, dynamic> incident = Map<String, dynamic>.from(raw);
+
+        final location = incident['location'];
+        if (location == null ||
+            location['latitude'] == null ||
+            location['longitude'] == null) {
+          // Skip malformed records that do not have coordinates
+          continue;
+        }
+
         double distance = _calculateDistance(
           latitude,
           longitude,
-          incident['location']['latitude'],
-          incident['location']['longitude'],
+          location['latitude'],
+          location['longitude'],
         );
 
         // _calculateDistance returns kilometers. Compare against radiusKm (km).
