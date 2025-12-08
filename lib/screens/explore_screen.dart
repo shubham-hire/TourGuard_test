@@ -4,9 +4,12 @@ import '../models/place_model.dart';
 import '../widgets/place_card.dart';
 import '../widgets/filter_chip.dart';
 import '../widgets/shimmer_place_card.dart';
+import '../widgets/explore_map_view.dart';
 import '../services/localization_service.dart';
 import '../services/places_api_service.dart';
 import '../services/location_service.dart';
+
+enum ViewMode { list, map }
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -22,6 +25,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   String? _errorMessage;
   Position? _currentPosition;
   String? _locationStatus;
+  ViewMode _viewMode = ViewMode.list;
 
   List<PlaceCategory> get _categories => [
         PlaceCategory(
@@ -128,19 +132,40 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   padding: const EdgeInsets.all(16),
                   color: Colors.white,
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        tr('explore_nashik'), // Consider making this dynamic too
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => _fetchPlaces(),
-                        icon: Icon(Icons.refresh, color: Colors.grey[400]),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // View mode toggle
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildViewModeButton(
+                                  icon: Icons.list,
+                                  mode: ViewMode.list,
+                                  tooltip: 'List View',
+                                ),
+                                _buildViewModeButton(
+                                  icon: Icons.map,
+                                  mode: ViewMode.map,
+                                  tooltip: 'Map View',
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () => _fetchPlaces(),
+                            icon: Icon(Icons.refresh, color: Colors.grey[400]),
+                            tooltip: 'Refresh',
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -168,9 +193,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   ),
                 ),
 
-                // Places List
+                // Places List or Map
                 Expanded(
-                  child: _buildPlacesList(),
+                  child: _viewMode == ViewMode.map
+                      ? _buildMapView()
+                      : _buildPlacesList(),
                 ),
               ],
             ),
@@ -317,6 +344,106 @@ class _ExploreScreenState extends State<ExploreScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildViewModeButton({
+    required IconData icon,
+    required ViewMode mode,
+    required String tooltip,
+  }) {
+    final isSelected = _viewMode == mode;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: isSelected ? Colors.blue : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              _viewMode = mode;
+            });
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Icon(
+              icon,
+              color: isSelected ? Colors.white : Colors.grey[700],
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapView() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading map',
+              style: TextStyle(fontSize: 18, color: Colors.grey[800]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _fetchPlaces,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_places.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.map_outlined, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'No places found nearby',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ExploreMapView(
+      places: _places,
+      currentPosition: _currentPosition,
+      selectedCategory: _selectedCategoryId,
+      onPlaceTap: (place) {
+        // Show bottom sheet with place details
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => PlaceDetailsBottomSheet(
+            place: place,
+            currentPosition: _currentPosition,
+          ),
+        );
+      },
     );
   }
 }
