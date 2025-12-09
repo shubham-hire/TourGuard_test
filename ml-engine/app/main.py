@@ -465,28 +465,38 @@ def generate_investigation_report(request: InvestigationRequest) -> Investigatio
         hours=request.hours_of_history
     )
     
-    # Convert observations to dicts
+    # Convert observations to dicts with all relevant fields
     obs_dicts = []
     for obs in history:
-        obs_dicts.append({
+        obs_dict = {
             'timestamp': obs.timestamp.isoformat() if hasattr(obs.timestamp, 'isoformat') else str(obs.timestamp),
             'lat': obs.lat,
             'lng': obs.lng,
-            'speed_mps': obs.speed_mps,
-            'battery_pct': obs.battery_pct,
-            'accuracy_m': obs.accuracy_m
-        })
+            'speed_mps': obs.speed_mps if hasattr(obs, 'speed_mps') else 0.0,
+            'battery_pct': obs.battery_pct if hasattr(obs, 'battery_pct') else None,
+            'accuracy_m': obs.accuracy_m if hasattr(obs, 'accuracy_m') else None,
+        }
+        # Add context if available
+        if hasattr(obs, 'context') and obs.context:
+            obs_dict['context'] = str(obs.context)
+        obs_dicts.append(obs_dict)
     
-    # Get alerts from history
+    # Get alerts from history with full context
     alerts_response = dispatcher.history(request.trip_id)
     alert_dicts = []
     for alert in alerts_response:
-        alert_dicts.append({
+        alert_dict = {
             'timestamp': alert.timestamp.isoformat() if hasattr(alert.timestamp, 'isoformat') else str(alert.timestamp),
             'alert_type': alert.alert_type,
             'message': alert.message,
             'severity': alert.severity
-        })
+        }
+        # Add context if available
+        if hasattr(alert, 'context') and alert.context:
+            alert_dict['context'] = str(alert.context)
+        if hasattr(alert, 'metadata') and alert.metadata:
+            alert_dict['metadata'] = str(alert.metadata)
+        alert_dicts.append(alert_dict)
     
     # Generate report
     report = llm.generate_investigation_report(

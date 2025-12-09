@@ -66,10 +66,11 @@ export function emitSOSUpdate(sosEvent: any) {
 }
 
 // Start server
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log('\n🚀 TourGuard Admin Panel Backend Running');
   console.log(`📍 Port: ${PORT}`);
   console.log(`🌐 API: http://localhost:${PORT}`);
+  console.log(`🌐 Network: http://10.191.242.40:${PORT}`);
   console.log(`📊 Database: Connected to SQLite`);
   console.log(`⏰ Started at: ${new Date().toLocaleString()}\n`);
 });

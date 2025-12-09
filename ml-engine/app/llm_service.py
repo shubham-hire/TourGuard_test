@@ -94,7 +94,7 @@ class LLMService:
                 messages=messages,
                 options={
                     "num_predict": self.max_tokens,
-                    "temperature": 0.7,
+                    "temperature": settings.llm_temperature,
                 }
             )
             
@@ -572,60 +572,73 @@ Format as clear sections."""
                 'recommendations': ["Review observation data manually", "Contact local authorities"]
             }
         
-        system_prompt = """You are a professional investigator analyzing tourist safety incidents.
-Create detailed, factual investigation reports with:
-- Timeline reconstruction
-- Pattern analysis
-- Scenario assessment (ranked by likelihood)
-- Evidence-based recommendations
+        system_prompt = """You are a Senior Safety Analyst. Generate BRIEF, data-driven investigation reports.
 
-Be thorough, objective, and actionable."""
+CRITICAL RULES:
+- ONLY use provided data - no fabrication
+- State "N/A" if data missing
+- Use EXACT numbers from data
+- Keep each section under 4 sentences
 
-        # Prepare observation summary
+OUTPUT: Concise professional report for emergency response."""
+
+        # Prepare detailed observation summary with calculations
         if observations:
             first_obs = observations[0]
             last_obs = observations[-1]
-            duration = "Unknown"
-            if 'timestamp' in first_obs and 'timestamp' in last_obs:
-                # Calculate duration (simplified)
-                duration = f"{len(observations)} observations"
+            
+            # Calculate statistics from observations
+            total_obs = len(observations)
+            battery_values = [obs.get('battery_pct') for obs in observations if obs.get('battery_pct') is not None]
+            speed_values = [obs.get('speed_mps', 0) * 3.6 for obs in observations if obs.get('speed_mps') is not None]
             
             obs_summary = f"""
-Observation Period: {first_obs.get('timestamp')} to {last_obs.get('timestamp')}
-Total Observations: {len(observations)}
-First Location: ({first_obs.get('lat')}, {first_obs.get('lng')})
-Last Location: ({last_obs.get('lat')}, {last_obs.get('lng')})
+OBSERVATION DATA:
+Period: {first_obs.get('timestamp', 'Unknown')} → {last_obs.get('timestamp', 'Unknown')}
+Total Points: {total_obs}
+
+First Position: ({first_obs.get('lat', 'N/A')}, {first_obs.get('lng', 'N/A')}) at {first_obs.get('timestamp', 'N/A')}
+Last Position: ({last_obs.get('lat', 'N/A')}, {last_obs.get('lng', 'N/A')}) at {last_obs.get('timestamp', 'N/A')}
+{"Battery: " + f"{min(battery_values):.0f}%-{max(battery_values):.0f}%" if battery_values else "Battery: N/A"}
+{"Speed: " + f"{min(speed_values):.1f}-{max(speed_values):.1f} km/h" if speed_values else "Speed: N/A"}
 """
         else:
-            obs_summary = "No observation data available"
+            obs_summary = "⚠️ NO OBSERVATION DATA AVAILABLE"
         
-        # Prepare alert summary
-        alert_summary = "\n".join(
-            f"- {a.get('timestamp')}: {a.get('alert_type')} - {a.get('message')}"
-            for a in alerts
-        ) if alerts else "No alerts triggered"
+        # Prepare detailed alert summary
+        if alerts:
+            alert_summary = f"\nALERTS: {len(alerts)} triggered"
+            for i, alert in enumerate(alerts[:5], 1):  # Show up to 5 alerts
+                alert_summary += f"\n{i}. {alert.get('alert_type', 'UNKNOWN')} at {alert.get('timestamp', 'Unknown')}"
+        else:
+            alert_summary = "\nALERTS: None"
         
-        prompt = f"""INVESTIGATION REPORT REQUEST
+        prompt = f"""INVESTIGATION REPORT - CASE #{tourist_id}
 
-Case ID: {tourist_id} / {trip_id}
-Incident Type: {incident_type}
+Case: {tourist_id} / {trip_id}
+Type: {incident_type}
+Time: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 
-OBSERVATION DATA:
 {obs_summary}
-
-ALERTS TRIGGERED:
 {alert_summary}
 
-Generate a comprehensive investigation report with the following sections:
+REPORT (Keep BRIEF - max 4 sentences per section):
 
-1. EXECUTIVE SUMMARY (2-3 sentences)
-2. TIMELINE RECONSTRUCTION (key events in chronological order)
-3. BEHAVIORAL ANALYSIS (patterns, anomalies, deviations)
-4. SCENARIO ASSESSMENT (3-4 scenarios ranked by probability with %)
-5. RECOMMENDED ACTIONS (prioritized investigation steps)
-6. EVIDENCE TO COLLECT (specific items needed)
+1. EXECUTIVE SUMMARY
+   - Current status, location, primary concern, recommendation
 
-Be specific, factual, and actionable."""
+2. KEY EVENTS (bullet points)
+   - Important observations/alerts with timestamps
+
+3. FINDINGS
+   - Movement patterns, anomalies, risk indicators
+
+4. ACTIONS (prioritized)
+   - IMMEDIATE: 
+   - HIGH PRIORITY:
+
+
+BEGIN REPORT:"""
         
         response = self._generate(prompt, system_prompt)
         

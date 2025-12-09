@@ -9,9 +9,9 @@ class BlockchainService {
   static const String boxName = 'blockchainBox';
   
   // Default API endpoint - update this based on your deployment
-  static String _apiBaseUrl = 'http://172.17.5.58:8082'; // Your PC's IP
-  // static String _apiBaseUrl = 'http://10.0.2.2:8082'; // Android emulator
-  // static String _apiBaseUrl = 'http://localhost:8082'; // iOS simulator
+  static String _apiBaseUrl = 'http://10.191.242.40:8000'; // ML Engine with blockchain routes
+  // static String _apiBaseUrl = 'http://10.0.2.2:8000'; // Android emulator
+  // static String _apiBaseUrl = 'http://localhost:8000'; // iOS simulator
   
   /// Initialize the blockchain service
   static Future<void> init({String? apiBaseUrl}) async {

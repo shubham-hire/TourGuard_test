@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:math' as math;
 import '../models/itinerary_model.dart';
 import '../models/safe_route_model.dart';
 import 'safe_routing_service.dart';
@@ -176,5 +177,65 @@ class ItineraryService {
     }
 
     return recommendations;
+  }
+
+  /// Mark a stop as visited
+  void markStopAsVisited(String stopId) {
+    if (_currentItinerary == null) return;
+
+    final updatedStops = _currentItinerary!.stops.map((stop) {
+      if (stop.id == stopId) {
+        return stop.copyWith(visited: true);
+      }
+      return stop;
+    }).toList();
+
+    _currentItinerary = _currentItinerary!.copyWith(stops: updatedStops);
+  }
+
+  /// Check if user is near any unvisited stops and mark as visited
+  /// Returns the stop ID if one was auto-marked, null otherwise
+  String? checkProximityAndMarkVisited(double userLat, double userLng) {
+    if (_currentItinerary == null) return null;
+
+    const double visitThresholdMeters = 50.0; // Within 50 meters = visited
+    
+    for (final stop in _currentItinerary!.stops) {
+      if (!stop.visited) {
+        final distance = _calculateDistance(
+          userLat,
+          userLng,
+          stop.location.latitude,
+          stop.location.longitude,
+        );
+
+        if (distance <= visitThresholdMeters) {
+          markStopAsVisited(stop.id);
+          return stop.id; // Return the ID of the auto-marked stop
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// Calculate distance between two points in meters (Haversine formula)
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    const double earthRadius = 6371000; // meters
+    final dLat = _degreesToRadians(lat2 - lat1);
+    final dLon = _degreesToRadians(lon2 - lon1);
+
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_degreesToRadians(lat1)) *
+            math.cos(_degreesToRadians(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+
+    final c = 2 * math.asin(math.sqrt(a));
+    return earthRadius * c;
+  }
+
+  double _degreesToRadians(double degrees) {
+    return degrees * math.pi / 180;
   }
 }

@@ -6,6 +6,9 @@ import '../models/safe_route_model.dart';
 import '../models/place_model.dart';
 import '../services/itinerary_service.dart';
 import '../services/location_service.dart';
+import '../widgets/itinerary_map_view.dart';
+
+enum ItineraryViewMode { list, map }
 
 /// Screen for creating and viewing safe itineraries
 class SafeItineraryScreen extends StatefulWidget {
@@ -19,11 +22,13 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
   final _itineraryService = ItineraryService();
   bool _isCalculating = false;
   Position? _currentPosition;
+  ItineraryViewMode _viewMode = ItineraryViewMode.list;
 
   @override
   void initState() {
     super.initState();
     _initItinerary();
+    _startLocationMonitoring();
   }
 
   Future<void> _initItinerary() async {
@@ -45,6 +50,54 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
     } catch (e) {
       debugPrint('Error getting location: $e');
     }
+  }
+
+  // Monitor location and auto-mark visited stops
+  void _startLocationMonitoring() {
+    Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10, // Update every 10 meters
+      ),
+    ).listen((position) {
+      setState(() {
+        _currentPosition = position;
+      });
+
+      // Check if near any unvisited stops
+      final markedStopId = _itineraryService.checkProximityAndMarkVisited(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (markedStopId != null && mounted) {
+        // Refresh UI
+        setState(() {});
+        
+        // Show notification
+        final stop = _itineraryService.currentItinerary?.stops
+            .firstWhere((s) => s.id == markedStopId);
+        
+        if (stop != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text('✅ Arrived at "${stop.name}"! Marked as visited.'),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    });
   }
 
   Future<void> _calculateRoutes() async {
@@ -103,7 +156,19 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
         title: const Text('Safe Itinerary Planner'),
         backgroundColor: Colors.blue,
         actions: [
-          if (itinerary != null && itinerary.stops.isNotEmpty)
+          if (itinerary != null && itinerary.stops.isNotEmpty) ...[
+            // View mode toggle
+            IconButton(
+              icon: Icon(_viewMode == ItineraryViewMode.map ? Icons.list : Icons.map),
+              onPressed: () {
+                setState(() {
+                  _viewMode = _viewMode == ItineraryViewMode.map 
+                      ? ItineraryViewMode.list 
+                      : ItineraryViewMode.map;
+                });
+              },
+              tooltip: _viewMode == ItineraryViewMode.map ? 'List View' : 'Map View',
+            ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: () {
@@ -113,6 +178,7 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
               },
               tooltip: 'Clear itinerary',
             ),
+          ],
         ],
       ),
       body: itinerary == null || itinerary.stops.isEmpty
@@ -174,34 +240,61 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
         // Summary Card
         if (hasRoutes) _buildSummaryCard(itinerary),
         
-        // Stops List
+        // View content (Map or List)
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: itinerary.stops.length,
-            itemBuilder: (context, index) {
-              final stop = itinerary.stops[index];
-              final isFirst = index == 0;
-
-              return Column(
-                children: [
-                  // Route segment (if not first)
-                  if (!isFirst && stop.routeFromPrevious != null)
-                    _buildRouteSegment(stop.routeFromPrevious!),
-                  
-                  // Stop card
-                  _buildStopCard(stop, index + 1),
-                  
-                  const SizedBox(height: 8),
-                ],
-              );
-            },
-          ),
+          child: _viewMode == ItineraryViewMode.map
+              ? _buildMapView(itinerary)
+              : _buildListView(itinerary),
         ),
 
         // Recommendations
         if (hasRoutes) _buildRecommendations(itinerary),
       ],
+    );
+  }
+
+  Widget _buildMapView(DayItinerary itinerary) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: ItineraryMapView(
+        itinerary: itinerary,
+        onMarkVisited: (stopId) {
+          setState(() {
+            _itineraryService.removeStop(stopId);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Place marked as visited!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildListView(DayItinerary itinerary) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: itinerary.stops.length,
+      itemBuilder: (context, index) {
+        final stop = itinerary.stops[index];
+        final isFirst = index == 0;
+
+        return Column(
+          children: [
+            // Route segment (if not first)
+            if (!isFirst && stop.routeFromPrevious != null)
+              _buildRouteSegment(stop.routeFromPrevious!),
+            
+            // Stop card
+            _buildStopCard(stop, index + 1),
+            
+            const SizedBox(height: 8),
+          ],
+        );
+      },
     );
   }
 
@@ -350,25 +443,254 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
   }
 
   Widget _buildStopCard(ItineraryStop stop, int number) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.blue,
-          child: Text(
-            '$number',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+    final isFirst = number == 1;
+    final isLast = number == _itineraryService.currentItinerary!.stops.length;
+    final isVisited = stop.visited;
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            isVisited
+                ? Colors.grey[200]!
+                : isFirst 
+                    ? Colors.green[50]! 
+                    : isLast 
+                        ? Colors.red[50]!
+                        : Colors.blue[50]!,
+            isVisited ? Colors.grey[100]! : Colors.white,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isVisited ? 0.04 : 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
+        ],
+        border: Border.all(
+          color: isVisited
+              ? Colors.grey[300]!
+              : isFirst 
+                  ? Colors.green[200]! 
+                  : isLast 
+                      ? Colors.red[200]!
+                      : Colors.blue[200]!,
+          width: 2,
         ),
-        title: Text(
-          stop.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(stop.category),
-        trailing: IconButton(
-          icon: const Icon(Icons.close, color: Colors.red),
-          onPressed: () => _removeStop(stop.id),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // Number badge with gradient
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isVisited
+                      ? [Colors.grey[400]!, Colors.grey[600]!]
+                      : isFirst
+                          ? [Colors.green[400]!, Colors.green[600]!]
+                          : isLast
+                              ? [Colors.red[400]!, Colors.red[600]!]
+                              : [Colors.blue[400]!, Colors.blue[600]!],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: (isVisited ? Colors.grey :  isFirst ? Colors.green : isLast ? Colors.red : Colors.blue)
+                        .withOpacity(0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '$number',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    ),
+                    if (isFirst && !isVisited)
+                      const Text(
+                        'START',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    else if (isLast && !isVisited)
+                      const Text(
+                        'END',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    else if (isVisited)
+                      const Text(
+                        'DONE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            
+            // Place info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    stop.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      decoration: isVisited ? TextDecoration.lineThrough : null,
+                      color: isVisited ? Colors.grey[600] : Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isVisited ? Colors.grey[300] : Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          stop.category,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                      if (isFirst && !isVisited) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.flag, size: 12, color: Colors.green[700]),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Starting Point',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.green[700],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (isLast && !isVisited) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.location_on, size: 12, color: Colors.red[700]),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Final Stop',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.red[700],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (isVisited) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle, size: 12, color: Colors.green[700]),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Visited',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.green[700],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            // Action button (checkmark if visited, X if not)
+            if (isVisited)
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green[100],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.check_circle,
+                  color: Colors.green[700],
+                  size: 32,
+                ),
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.red),
+                onPressed: () => _removeStop(stop.id),
+                tooltip: 'Remove from itinerary',
+              ),
+          ],
         ),
       ),
     );

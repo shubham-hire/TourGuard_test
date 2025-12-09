@@ -8,10 +8,10 @@ class BackendService {
   // Base URL configuration
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://172.17.5.58:3000/api';
+      return 'http://10.191.242.40:3000/api';
     }
     // For Android physical device or emulator on same network
-    return 'http://172.17.5.58:3000/api'; // Your PC's IP
+    return 'http://10.191.242.40:3000/api'; // Your PC's IP
   }
   // If using emulator on same machine, use: http://10.0.2.2:3000/api
 

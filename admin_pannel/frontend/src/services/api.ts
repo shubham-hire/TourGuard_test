@@ -6,7 +6,7 @@
 import axios from 'axios';
 import { LoginCredentials, LoginResponse, SosEvent, User, Incident, ApiResponse } from '../types';
 
-const API_BASE_URL = 'http://localhost:5002';
+const API_BASE_URL = 'http://10.191.242.40:5001';
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,

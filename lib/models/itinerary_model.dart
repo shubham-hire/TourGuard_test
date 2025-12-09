@@ -9,6 +9,7 @@ class ItineraryStop {
   final String category;
   final String? description;
   final DateTime? scheduledTime;
+  final bool visited; // Whether the tourist has visited this location
   
   // Route to this stop from previous stop
   SafeRoute? routeFromPrevious;
@@ -20,6 +21,7 @@ class ItineraryStop {
     required this.category,
     this.description,
     this.scheduledTime,
+    this.visited = false,
     this.routeFromPrevious,
   });
 
@@ -30,6 +32,7 @@ class ItineraryStop {
     String? category,
     String? description,
     DateTime? scheduledTime,
+    bool? visited,
     SafeRoute? routeFromPrevious,
   }) {
     return ItineraryStop(
@@ -39,6 +42,7 @@ class ItineraryStop {
       category: category ?? this.category,
       description: description ?? this.description,
       scheduledTime: scheduledTime ?? this.scheduledTime,
+      visited: visited ?? this.visited,
       routeFromPrevious: routeFromPrevious ?? this.routeFromPrevious,
     );
   }

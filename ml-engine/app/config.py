@@ -30,8 +30,9 @@ class Settings(BaseSettings):
     ollama_host: str = Field(default="http://localhost:11434")
     ollama_model: str = Field(default="phi3:mini")
     llm_enabled: bool = Field(default=True)
-    llm_timeout: int = Field(default=30)
-    llm_max_tokens: int = Field(default=500)
+    llm_timeout: int = Field(default=10)  # Fast generation for reports
+    llm_max_tokens: int = Field(default=1200)  # Reduced for 10-second generation
+    llm_temperature: float = Field(default=0.7)  # Higher for faster generation
 
     model_config = SettingsConfigDict(
         env_prefix="ML_ENGINE_",
