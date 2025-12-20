@@ -56,6 +56,12 @@ app.add_middleware(
 app.include_router(blockchain_router)
 
 
+@app.get("/")
+def root() -> dict[str, str]:
+    """Root endpoint for health checks."""
+    return {"status": "ok", "service": "TourGuard ML Engine"}
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
