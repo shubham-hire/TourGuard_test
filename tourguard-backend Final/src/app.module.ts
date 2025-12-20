@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { ToursModule } from './tours/tours.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { OtpModule } from './otp/otp.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -26,5 +27,7 @@ import { OtpModule } from './otp/otp.module';
     IncidentsModule,
     OtpModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule { }
+

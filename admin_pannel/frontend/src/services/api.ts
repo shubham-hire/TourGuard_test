@@ -6,13 +6,16 @@
 import axios from 'axios';
 import { LoginCredentials, LoginResponse, SosEvent, User, Incident, ApiResponse } from '../types';
 
-const API_BASE_URL = 'https://tourguard-test.onrender.com';
+// Use environment variable for API base URL, with fallback to Render deployment
+// Set VITE_API_BASE_URL in .env for local development or Render environment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://tourguard-test.onrender.com';
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
+    timeout: 30000, // 30 second timeout for slow Render cold starts
 });
 
 // Add JWT token to requests
