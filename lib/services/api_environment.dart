@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Central place to resolve API base URLs depending on platform and
 /// build-time overrides. This keeps emulator/device specific hosts out
@@ -9,8 +9,8 @@ class ApiEnvironment {
       String.fromEnvironment('PLACES_API_BASE_URL', defaultValue: '');
   static const String _googlePlacesOverride =
       String.fromEnvironment('GOOGLE_PLACES_API_KEY', defaultValue: '');
-      static const String _bundledFallbackGoogleKey =
-        'AIzaSyDtbyiNsjhAWH-7NJPT0xu_FJKRIi9YPzU';
+      static String get _bundledFallbackGoogleKey =>
+        dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
 
   /// Resolve the backend base URL for the nearby places API.
   static String get placesBaseUrl {

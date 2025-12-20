@@ -1,8 +1,9 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Service for generating historical and cultural information about places
 class HistoricalInfoService {
-  static const String _apiKey = 'AIzaSyAOcPXdRiGz_MxE44RGqCkl_wHAY65N4Wg'; // Your Gemini API key
+  static String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? ''; // Your Gemini API key
   static GenerativeModel? _model;
 
   static GenerativeModel get model {

@@ -33,8 +33,15 @@ dependencies {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
+        versionCode = flutter.versionCode.toInteger()
         versionName = flutter.versionName
+
+        val envFile = rootProject.file("../.env")
+        val envProperties = java.util.Properties()
+        if (envFile.exists()) {
+            envProperties.load(java.io.FileInputStream(envFile))
+        }
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = envProperties.getProperty("GOOGLE_MAPS_API_KEY") ?: ""
     }
 
     buildTypes {

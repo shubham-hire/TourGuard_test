@@ -5,7 +5,7 @@ This guide will help you deploy your backend to **Render.com** (Free Tier) so yo
 ## Prerequisites
 
 1.  **GitHub Account**: You need to push your code to a GitHub repository.
-2.  **Render.com Account**: Sign up for free at [dashboard.render.com](https://dashboard.render.com/).
+2.  **Render.com Account**: Sign up for free at [dashboard.render.com](https://dashboard.render.com/).a
 3.  **Google Gemini API Key**: Get a free API key from [aistudio.google.com](https://aistudio.google.com/app/apikey).
 
 ## Step 1: Push to GitHub
