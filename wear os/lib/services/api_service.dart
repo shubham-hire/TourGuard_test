@@ -5,8 +5,9 @@ import '../models/sos_alert.dart';
 import '../models/zone.dart';
 
 class ApiService {
-  // TODO: Configure this with your actual backend URL
-  static String _baseUrl = 'http://10.0.2.2:5000'; // Default for Android emulator
+  // Production Render deployment URL
+  static String _baseUrl = 'https://tourguard-test.onrender.com/api'; // Render deployment
+  // For local development, use: http://10.0.2.2:5000 (Android emulator)
   
   static void setBaseUrl(String url) {
     _baseUrl = url.endsWith('/') ? url.substring(0, url.length - 1) : url;

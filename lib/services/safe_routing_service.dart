@@ -7,7 +7,7 @@ import '../models/safe_route_model.dart';
 /// Service for calculating safety-aware routes
 class SafeRoutingService {
   // ML Engine endpoint
-  static const String mlEngineBaseUrl = 'http://172.17.5.58:8082';
+  static const String mlEngineBaseUrl = 'https://ml-engine-713f.onrender.com';
   
   /// Calculate safe route from origin to destination
   /// 

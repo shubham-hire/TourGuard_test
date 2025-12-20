@@ -9,7 +9,7 @@ class BlockchainService {
   static const String boxName = 'blockchainBox';
   
   // Default API endpoint - update this based on your deployment
-  static String _apiBaseUrl = 'http://192.168.1.3:8082'; // ML Engine with blockchain routes
+  static String _apiBaseUrl = 'https://ml-engine-713f.onrender.com'; // Deployed ML Engine
   // static String _apiBaseUrl = 'http://10.0.2.2:8000'; // Android emulator
   // static String _apiBaseUrl = 'http://localhost:8000'; // iOS simulator
   

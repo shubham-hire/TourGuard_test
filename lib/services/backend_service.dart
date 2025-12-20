@@ -5,15 +5,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service to connect Flutter app to the new TourGuard backend API
 class BackendService {
-  // Base URL configuration
+  // Base URL configuration - Use Render deployment for production
   static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://192.168.1.3:3000/api';
-    }
-    // For Android physical device or emulator on same network
-    return 'http://192.168.1.3:3000/api'; // Your PC's IP
+    // Always use the deployed Render backend
+    return 'https://tourguard-test.onrender.com/api';
+    
+    // For local development, uncomment below and comment out the line above:
+    // if (kIsWeb) {
+    //   return 'https://tourguard-test.onrender.com/api';
+    // }
+    // return 'http://192.168.1.3:3000/api'; // Your PC's IP
+    // If using emulator on same machine, use: http://10.0.2.2:3000/api
   }
-  // If using emulator on same machine, use: http://10.0.2.2:3000/api
 
   static const String _tokenKey = 'auth_token';
   static const String _userIdKey = 'user_id';

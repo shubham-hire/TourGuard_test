@@ -9,7 +9,7 @@ class ChatService {
   static Future<void> initialize() async {
     await Hive.openBox(cacheBoxName);
     
-    socket = IO.io('http://192.168.1.3:3000', {
+    socket = IO.io('https://tourguard-test.onrender.com', {
       'transports': ['websocket'],
       'autoConnect': false,
     });
