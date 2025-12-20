@@ -22,11 +22,8 @@ import 'package:tourguard/services/incident_service.dart';
 import 'package:tourguard/services/localization_service.dart';
 import 'package:tourguard/services/offline_map_service.dart';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
   
   // Initialize services
   await NotificationService.initialize();
