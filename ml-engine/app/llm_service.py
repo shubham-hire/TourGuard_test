@@ -20,7 +20,13 @@ try:
     OLLAMA_AVAILABLE = True
 except ImportError:
     OLLAMA_AVAILABLE = False
-    logging.warning("Ollama package not installed. LLM features will be disabled.")
+
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+    logging.warning("Google Generative AI package not installed.")
 
 from .config import get_settings
 from .schemas import RiskLevel
@@ -33,22 +39,45 @@ class LLMService:
     """Service for interacting with Ollama LLM."""
     
     def __init__(self):
-        self.enabled = settings.llm_enabled and OLLAMA_AVAILABLE
-        self.model = settings.ollama_model
-        self.host = settings.ollama_host
-        self.timeout = settings.llm_timeout
-        self.max_tokens = settings.llm_max_tokens
-        self._cache: Dict[str, str] = {}
+        # Determine provider: 'ollama' or 'gemini'
+        self.provider = settings.llm_provider if hasattr(settings, 'llm_provider') else 'ollama'
+        self.api_key = settings.google_api_key if hasattr(settings, 'google_api_key') else None
+        
+        # Auto-switch to Gemini if configured and Ollama is missing or purely based on preference
+        if self.provider == 'gemini' and not GEMINI_AVAILABLE:
+            logger.error("Gemini provider requested but package not installed.")
+            self.enabled = False
+        elif self.provider == 'ollama' and not OLLAMA_AVAILABLE:
+             if self.api_key and GEMINI_AVAILABLE:
+                 logger.info("Ollama not available, falling back to Gemini.")
+                 self.provider = 'gemini'
+             else:
+                 logger.warning("Ollama not available. LLM features disabled.")
+                 self.enabled = False
         
         if self.enabled:
             try:
-                self._verify_connection()
-                logger.info(f"LLM Service initialized with model: {self.model}")
+                if self.provider == 'gemini':
+                    self._init_gemini()
+                else:
+                    self._verify_connection()
+                logger.info(f"LLM Service initialized with provider: {self.provider} (Model: {self.model})")
             except Exception as e:
                 logger.error(f"Failed to initialize LLM service: {e}")
                 self.enabled = False
         else:
             logger.warning("LLM Service is disabled. Enable with ML_ENGINE_LLM_ENABLED=true")
+
+    def _init_gemini(self):
+        """Initialize Google Gemini client."""
+        if not self.api_key:
+            raise ValueError("GOOGLE_API_KEY not found in settings for Gemini provider.")
+        genai.configure(api_key=self.api_key)
+        # Use a compatible model if the default ollama model name doesn't match
+        if not self.model or 'phi' in self.model or 'llama' in self.model:
+            self.model = 'gemini-1.5-flash'  # Default efficient model
+        self.gemini_model = genai.GenerativeModel(self.model)
+
     
     def _verify_connection(self) -> bool:
         """Verify Ollama is running and model is available."""
@@ -84,21 +113,34 @@ class LLMService:
             return self._cache[cache_key]
         
         try:
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
-            
-            response = ollama.chat(
-                model=self.model,
-                messages=messages,
-                options={
-                    "num_predict": self.max_tokens,
-                    "temperature": settings.llm_temperature,
-                }
-            )
-            
-            result = response['message']['content'].strip()
+            if self.provider == 'gemini':
+                # Gemini Generation
+                full_prompt = f"{system_prompt}\n\nUser: {prompt}" if system_prompt else prompt
+                response = self.gemini_model.generate_content(
+                    full_prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        candidate_count=1,
+                        max_output_tokens=self.max_tokens,
+                        temperature=settings.llm_temperature,
+                    )
+                )
+                result = response.text.strip()
+            else:
+                # Ollama Generation
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": prompt})
+                
+                response = ollama.chat(
+                    model=self.model,
+                    messages=messages,
+                    options={
+                        "num_predict": self.max_tokens,
+                        "temperature": settings.llm_temperature,
+                    }
+                )
+                result = response['message']['content'].strip()
             
             # Cache the response
             self._cache[cache_key] = result

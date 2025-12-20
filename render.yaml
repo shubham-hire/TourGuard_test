@@ -1,0 +1,41 @@
+services:
+  # 1. Main Backend (NestJS)
+  - type: web
+    name: tourguard-backend
+    env: node
+    rootDir: "tourguard-backend Final"
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      # Note: SQLite DB will be non-persistent on free tier
+
+  # 2. Admin Panel Backend (Express)
+  - type: web
+    name: admin-backend
+    env: node
+    rootDir: "admin_pannel/backend"
+    buildCommand: npm install && npm run build
+    startCommand: node dist/server.js
+    envVars:
+      - key: PORT
+        value: 5001
+      # Note: SQLite DB will be non-persistent on free tier
+
+  # 3. ML Engine (Python + Gemini)
+  - type: web
+    name: ml-engine
+    env: python
+    rootDir: "ml-engine"
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: ML_ENGINE_LLM_PROVIDER
+        value: gemini
+      - key: ML_ENGINE_GOOGLE_API_KEY
+        generateValue: true # User will be prompted to enter this
