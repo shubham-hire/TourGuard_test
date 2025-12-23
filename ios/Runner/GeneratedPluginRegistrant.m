@@ -54,6 +54,12 @@
 @import flutter_local_notifications;
 #endif
 
+#if __has_include(<geocoding_ios/GeocodingPlugin.h>)
+#import <geocoding_ios/GeocodingPlugin.h>
+#else
+@import geocoding_ios;
+#endif
+
 #if __has_include(<geofence_service/GeofenceServicePlugin.h>)
 #import <geofence_service/GeofenceServicePlugin.h>
 #else
@@ -131,6 +137,7 @@
   [FlLocationPlugin registerWithRegistrar:[registry registrarForPlugin:@"FlLocationPlugin"]];
   [FlutterActivityRecognitionPlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterActivityRecognitionPlugin"]];
   [FlutterLocalNotificationsPlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterLocalNotificationsPlugin"]];
+  [GeocodingPlugin registerWithRegistrar:[registry registrarForPlugin:@"GeocodingPlugin"]];
   [GeofenceServicePlugin registerWithRegistrar:[registry registrarForPlugin:@"GeofenceServicePlugin"]];
   [GeolocatorPlugin registerWithRegistrar:[registry registrarForPlugin:@"GeolocatorPlugin"]];
   [FLTGoogleMapsPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTGoogleMapsPlugin"]];

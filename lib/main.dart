@@ -52,23 +52,35 @@ class TouristSafetyHub extends StatelessWidget {
         builder: (context, languageCode, _) {
           return MaterialApp(
             title: 'TourGuard',
-            theme: ThemeData(
-              primarySwatch: Colors.blue,
-              fontFamily: 'Roboto',
-              useMaterial3: true,
-              scaffoldBackgroundColor: Colors.grey[100],
-              appBarTheme: AppBarTheme(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.grey[800],
-                elevation: 0,
-              ),
-              cardTheme: CardThemeData(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              theme: ThemeData(
+                primaryColor: AppColors.navyBlue,
+                scaffoldBackgroundColor: AppColors.surfaceWhite,
+                colorScheme: ColorScheme.fromSeed(
+                  seedColor: AppColors.navyBlue,
+                  primary: AppColors.navyBlue,
+                  secondary: AppColors.saffron,
+                  surface: AppColors.surfaceWhite,
+                ),
+                useMaterial3: true,
+                appBarTheme: const AppBarTheme(
+                  backgroundColor: AppColors.surfaceWhite,
+                  foregroundColor: AppColors.textDark,
+                  elevation: 0,
+                ),
+                bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+                  backgroundColor: Colors.white,
+                  selectedItemColor: AppColors.navyBlue,
+                  unselectedItemColor: AppColors.textLight,
+                  elevation: 8,
+                  type: BottomNavigationBarType.fixed,
+                ),
+                cardTheme: CardThemeData(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
-            ),
             initialRoute: '/',
             onGenerateRoute: (settings) {
               switch (settings.name) {
@@ -118,60 +130,81 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _currentIndex = 0;
+  int _selectedIndex = 0;
 
-  final List<Widget> _screens = const [
-    DashboardScreen(),
-    ProfileScreen(),
-    ExploreScreen(),
-    EmergencyScreen(),
-    SettingsScreen(),
+  final List<Widget> _screens = [
+    const DashboardScreen(),
+    const ExploreScreen(),
+    const EmergencyScreen(),
+    const ProfileScreen(),
   ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
-      bottomNavigationBar: ValueListenableBuilder<String>(
-        valueListenable: LocalizationService.languageNotifier,
-        builder: (context, language, child) {
-          return BottomNavigationBar(
-            items: [
+      extendBody: true, // Allow body to extend behind the floating navbar
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          gradient: const LinearGradient(
+            colors: [AppColors.saffron, Colors.white, AppColors.indiaGreen],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(2), // Gradient border width
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: _onItemTapped,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.white,
+            elevation: 0, // Remove internal elevation
+            selectedItemColor: AppColors.navyBlue,
+            unselectedItemColor: AppColors.textLight,
+            showUnselectedLabels: true,
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            unselectedLabelStyle: const TextStyle(fontSize: 10),
+            items: const <BottomNavigationBarItem>[
               BottomNavigationBarItem(
-                icon: const Icon(Icons.home),
-                label: tr('dashboard'),
-                backgroundColor: Colors.blue[800],
+                icon: Icon(Icons.dashboard_outlined),
+                activeIcon: Icon(Icons.dashboard),
+                label: 'Dashboard',
               ),
               BottomNavigationBarItem(
-                icon: const Icon(Icons.person_outline),
-                label: tr('profile'),
-                backgroundColor: Colors.blue[800],
+                icon: Icon(Icons.explore_outlined),
+                activeIcon: Icon(Icons.explore),
+                label: 'Explore',
               ),
               BottomNavigationBarItem(
-                icon: const Icon(Icons.explore_outlined),
-                label: tr('explore'),
-                backgroundColor: Colors.blue[800],
+                icon: Icon(Icons.emergency_outlined),
+                activeIcon: Icon(Icons.emergency),
+                label: 'Emergency',
               ),
               BottomNavigationBarItem(
-                icon: const Icon(Icons.warning_amber_rounded),
-                label: tr('emergency'),
-                backgroundColor: Colors.blue[800],
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.settings_outlined),
-                label: tr('settings'),
-                backgroundColor: Colors.blue[800],
+                icon: Icon(Icons.person_outline),
+                activeIcon: Icon(Icons.person),
+                label: 'Profile',
               ),
             ],
-            type: BottomNavigationBarType.fixed,
-            currentIndex: _currentIndex,
-            onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-          );
-        },
+          ),
+        ),
       ),
     );
   }

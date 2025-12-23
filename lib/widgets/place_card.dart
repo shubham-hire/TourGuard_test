@@ -1,226 +1,277 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:tourguard/core/constants/app_colors.dart';
 import '../models/place_model.dart';
 import 'enhanced_place_details_sheet.dart';
 
-class PlaceCard extends StatelessWidget {
+class PlaceCard extends StatefulWidget {
   final Place place;
   final VoidCallback? onAddToItinerary;
 
   const PlaceCard({super.key, required this.place, this.onAddToItinerary});
 
+  @override
+  State<PlaceCard> createState() => _PlaceCardState();
+}
+
+class _PlaceCardState extends State<PlaceCard> {
+  bool _isExpanded = false;
+
   Color _getCategoryColor(String category) {
     switch (category) {
       case 'tourist_attraction':
       case 'famous':
-        return Colors.purple;
+        return AppColors.saffron;
       case 'restaurant':
       case 'food':
         return Colors.orange;
       case 'amusement_park':
       case 'adventure':
-        return Colors.red;
+        return Colors.redAccent;
       case 'park':
       case 'hidden-gem':
-        return Colors.green;
+        return AppColors.indiaGreen;
       default:
-        return Colors.blueGrey;
-    }
-  }
-
-  String _getCategoryLabel(String category) {
-    switch (category) {
-      case 'tourist_attraction':
-      case 'famous':
-        return 'Famous Spot';
-      case 'restaurant':
-      case 'food':
-        return 'Food & Dining';
-      case 'amusement_park':
-      case 'adventure':
-        return 'Adventure';
-      case 'park':
-      case 'hidden-gem':
-        return 'Hidden Gem';
-      default:
-        return 'Place';
+        return AppColors.navyBlue;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final categoryColor = _getCategoryColor(place.category);
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: CachedNetworkImage(
-              imageUrl: place.imageUrl,
-              height: 120,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                height: 120,
-                color: Colors.grey[300],
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-              errorWidget: (context, url, error) => Container(
-                height: 120,
-                color: Colors.grey[300],
-                child: const Icon(Icons.error),
-              ),
-            ),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 4), // Margin 0 to fit ListView padding
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16), // Slightly less rounded
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+            spreadRadius: 0,
           ),
-
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        place.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+        ],
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Image Section
+              Hero(
+                tag: widget.place.name,
+                child: Container(
+                  width: 76,  // Reduced from 84
+                  height: 76, // Reduced from 84
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                    image: DecorationImage(
+                      image: CachedNetworkImageProvider(widget.place.imageUrl),
+                      fit: BoxFit.cover,
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: categoryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: categoryColor.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Text(
-                        _getCategoryLabel(place.category),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: categoryColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  place.description,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+              ),
+
+              const SizedBox(width: 12),
+
+              // 2. Content Section
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Title and Star
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.star, size: 20, color: Colors.amber[700]),
-                        const SizedBox(width: 4),
-                        Text(
-                          place.rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        if (place.userRatingsTotal > 0) ...[
-                          const SizedBox(width: 4),
-                          Text(
-                            '(${place.userRatingsTotal})',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                         Expanded(
+                           child: Text(
+                             widget.place.name,
+                             style: const TextStyle(
+                               fontSize: 15, // Reduced from 16
+                               fontWeight: FontWeight.bold,
+                               color: AppColors.navyBlue,
+                               height: 1.1,
+                             ),
+                             maxLines: 2,
+                             overflow: TextOverflow.ellipsis,
+                           ),
+                         ),
+                         Row(
+                           children: [
+                             const SizedBox(width: 4),
+                             Icon(Icons.star_rounded, size: 16, color: Colors.amber[700]), // Reduced size
+                             const SizedBox(width: 2),
+                             Text(
+                               widget.place.rating.toStringAsFixed(1),
+                               style: const TextStyle(
+                                 fontWeight: FontWeight.bold,
+                                 fontSize: 13, // Reduced size
+                                 color: AppColors.textDark,
+                               ),
+                             ),
+                           ],
+                         ),
                       ],
                     ),
+                    const SizedBox(height: 4), // Reduced spacing
+
+                    // Description
                     Text(
-                      'Approx. ${place.distance} away',
+                      widget.place.description,
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[600],
+                        fontSize: 12,
+                        color: AppColors.textDark.withOpacity(0.7),
+                        height: 1.2, // Tighter line height
                       ),
+                      maxLines: _isExpanded ? 10 : 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          place.isOpen ? Icons.circle : Icons.circle_outlined,
-                          size: 12,
-                          color: place.isOpen ? Colors.green : Colors.grey,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          place.isOpen ? 'Open now' : 'Closed',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: place.isOpen ? Colors.green[700] : Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (onAddToItinerary != null)
-                      OutlinedButton.icon(
-                        onPressed: onAddToItinerary,
-                        icon: const Icon(Icons.add, size: 16),
-                        label: const Text('Add to Trip'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          textStyle: const TextStyle(fontSize: 12),
-                        ),
-                      )
-                    else
+
+                    if (!_isExpanded)
                       GestureDetector(
                         onTap: () {
-                          // Navigate to place details
-                          _showPlaceDetails(context, place);
+                          setState(() {
+                             _isExpanded = true;
+                          });
                         },
-                        child: Text(
-                          'View Details →',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[600],
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            'Read More',
+                            style: TextStyle(
+                              color: AppColors.navyBlue.withOpacity(0.8),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+
+          // 3. Bottom Actions
+          const SizedBox(height: 4), // Reduced spacing from 8
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center, // Align center
+            children: [
+               GestureDetector(
+                 onTap: () {
+                    setState(() {
+                      _isExpanded = !_isExpanded;
+                    });
+                 },
+                 child: Container(
+                   padding: const EdgeInsets.all(6), // Reduced padding
+                   decoration: BoxDecoration(
+                     color: Colors.grey[50],
+                     shape: BoxShape.circle,
+                     border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                   ),
+                   child: AnimatedRotation(
+                     turns: _isExpanded ? 0.5 : 0,
+                     duration: const Duration(milliseconds: 300),
+                     child: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[600], size: 20),
+                   ),
+                 ),
+               ),
+
+               if (widget.onAddToItinerary != null)
+                 SizedBox(
+                   height: 36, // Force smaller height
+                   child: ElevatedButton(
+                      onPressed: widget.onAddToItinerary,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.navyBlue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Add to Trip',
+                        style: TextStyle(
+                          fontSize: 13, // Reduced font size
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                   ),
+                 )
+                else
+                  SizedBox(
+                    height: 36,
+                    child: OutlinedButton(
+                       onPressed: () => _showPlaceDetails(context, widget.place),
+                       style: OutlinedButton.styleFrom(
+                         foregroundColor: AppColors.navyBlue,
+                         side: const BorderSide(color: AppColors.navyBlue),
+                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                         padding: const EdgeInsets.symmetric(horizontal: 16),
+                       ),
+                       child: const Text('View', style: TextStyle(fontSize: 13)),
+                    ),
+                  ),
+            ],
+          ),
+
+          if (_isExpanded) ...[
+             const SizedBox(height: 12),
+             Container(
+               padding: const EdgeInsets.all(12),
+               decoration: BoxDecoration(
+                 color: AppColors.surfaceWhite,
+                 borderRadius: BorderRadius.circular(12),
+               ),
+               child: Column(
+                 children: [
+                    _buildDetailRow(Icons.category_outlined, 'Category', widget.place.category),
+                    const SizedBox(height: 8),
+                    _buildDetailRow(Icons.access_time_rounded, 'Status', widget.place.isOpen ? 'Open Now' : 'Closed'),
+                    const SizedBox(height: 8),
+                    _buildDetailRow(Icons.location_on_outlined, 'Distance', '${widget.place.distance} away'),
+                 ],
+               ),
+             ),
+          ],
         ],
       ),
     );
   }
 
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.textGrey),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.navyBlue),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
   void _showPlaceDetails(BuildContext context, Place place) {
-    // Import the enhanced details sheet
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -232,7 +283,7 @@ class PlaceCard extends StatelessWidget {
         builder: (context, scrollController) {
           return EnhancedPlaceDetailsSheet(
             place: place,
-            onAddToItinerary: onAddToItinerary,
+            onAddToItinerary: widget.onAddToItinerary,
           );
         },
       ),

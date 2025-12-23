@@ -1,4 +1,5 @@
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class LocationServiceException implements Exception {
   final String message;
@@ -42,11 +43,24 @@ class LocationService {
 
   static Future<String> getAddressFromCoordinates(double lat, double lng) async {
     try {
-      // In a real app, you would use Google Maps Geocoding API or similar
-      // For demo, return a mock address
-      return 'Nashik, Maharashtra, India';
+      List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        // Prioritize village (subLocality) or district (subAdministrativeArea)
+        final village = place.subLocality;
+        final district = place.subAdministrativeArea;
+        final city = place.locality;
+        
+        if (village != null && village.isNotEmpty) {
+           return '$village, ${district ?? city ?? ''}';
+        } else if (district != null && district.isNotEmpty) {
+          return '$district, ${city ?? ''}';
+        }
+        return '${city ?? ''}, ${place.administrativeArea ?? ''}';
+      }
+      return 'Unknown Location';
     } catch (e) {
-      return 'Unable to fetch address';
+      return 'Location not found';
     }
   }
 

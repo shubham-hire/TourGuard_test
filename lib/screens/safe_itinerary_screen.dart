@@ -7,6 +7,7 @@ import '../models/place_model.dart';
 import '../services/itinerary_service.dart';
 import '../services/location_service.dart';
 import '../widgets/itinerary_map_view.dart';
+import 'package:tourguard/core/constants/app_colors.dart'; // Added theme import
 
 enum ItineraryViewMode { list, map }
 
@@ -142,9 +143,9 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
   }
 
   Color _getSafetyColor(double score) {
-    if (score >= 75) return Colors.green;
+    if (score >= 75) return AppColors.indiaGreen;
     if (score >= 50) return Colors.orange;
-    return Colors.red;
+    return Colors.redAccent;
   }
 
   @override
@@ -152,38 +153,102 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
     final itinerary = _itineraryService.currentItinerary;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Safe Itinerary Planner'),
-        backgroundColor: Colors.blue,
-        actions: [
-          if (itinerary != null && itinerary.stops.isNotEmpty) ...[
-            // View mode toggle
-            IconButton(
-              icon: Icon(_viewMode == ItineraryViewMode.map ? Icons.list : Icons.map),
-              onPressed: () {
-                setState(() {
-                  _viewMode = _viewMode == ItineraryViewMode.map 
-                      ? ItineraryViewMode.list 
-                      : ItineraryViewMode.map;
-                });
-              },
-              tooltip: _viewMode == ItineraryViewMode.map ? 'List View' : 'Map View',
+      backgroundColor: AppColors.surfaceWhite,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Creative Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                   IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navyBlue),
+                      onPressed: () => Navigator.pop(context),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.navyBlue.withOpacity(0.05),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                   ),
+                   const SizedBox(width: 12),
+                   Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.saffron.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.security_rounded, color: AppColors.saffron, size: 20),
+                   ),
+                   const SizedBox(width: 12),
+                   Flexible(
+                     child: Text(
+                        'Safe Itinerary',
+                        style: TextStyle(
+                          fontSize: 20, // Reduced from 22
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.navyBlue,
+                          shadows: [
+                            Shadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1)),
+                          ],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                     ),
+                   ),
+                   if (itinerary != null && itinerary.stops.isNotEmpty) ...[
+                      IconButton(
+                        icon: Icon(_viewMode == ItineraryViewMode.map ? Icons.list_rounded : Icons.map_rounded, size: 22),
+                        color: AppColors.textGrey,
+                         onPressed: () {
+                          setState(() {
+                            _viewMode = _viewMode == ItineraryViewMode.map
+                                ? ItineraryViewMode.list
+                                : ItineraryViewMode.map;
+                          });
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
+                        onPressed: () {
+                           // Show confirmation dialog before clearing
+                           showDialog(
+                             context: context,
+                             builder: (ctx) => AlertDialog(
+                               title: const Text('Clear Itinerary'),
+                               content: const Text('Are you sure you want to remove all stops?'),
+                               actions: [
+                                 TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                 TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(ctx);
+                                      _itineraryService.clearItinerary();
+                                      setState(() {});
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text('Clear', style: TextStyle(color: Colors.red)),
+                                 ),
+                               ],
+                             ),
+                           );
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                   ],
+                ],
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () {
-                _itineraryService.clearItinerary();
-                setState(() {});
-                Navigator.pop(context);
-              },
-              tooltip: 'Clear itinerary',
+
+            Expanded(
+              child: itinerary == null || itinerary.stops.isEmpty
+                  ? _buildEmptyState()
+                  : _buildItineraryView(itinerary),
             ),
           ],
-        ],
+        ),
       ),
-      body: itinerary == null || itinerary.stops.isEmpty
-          ? _buildEmptyState()
-          : _buildItineraryView(itinerary),
       floatingActionButton: itinerary != null && itinerary.stops.isNotEmpty
           ? FloatingActionButton.extended(
               onPressed: _isCalculating ? null : _calculateRoutes,
@@ -191,14 +256,13 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Icon(Icons.route),
-              label: Text(_isCalculating ? 'Calculating...' : 'Calculate Routes'),
-              backgroundColor: _isCalculating ? Colors.grey : Colors.blue,
+                  : const Icon(Icons.route_rounded),
+              label: Text(_isCalculating ? 'Calculating...' : 'Calculate Safer Route'),
+              backgroundColor: AppColors.navyBlue,
+              foregroundColor: Colors.white,
+              elevation: 4,
             )
           : null,
     );
@@ -398,7 +462,10 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -415,12 +482,10 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
                     Text(
                       route.formattedDuration,
                       style: const TextStyle(fontSize: 13),
                     ),
-                    const SizedBox(width: 8),
                     Text(
                       route.formattedDistance,
                       style: TextStyle(fontSize: 13, color: Colors.grey[600]),
@@ -450,47 +515,30 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            isVisited
-                ? Colors.grey[200]!
-                : isFirst 
-                    ? Colors.green[50]! 
-                    : isLast 
-                        ? Colors.red[50]!
-                        : Colors.blue[50]!,
-            isVisited ? Colors.grey[100]! : Colors.white,
-          ],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isVisited ? 0.04 : 0.08),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
         border: Border.all(
           color: isVisited
               ? Colors.grey[300]!
-              : isFirst 
-                  ? Colors.green[200]! 
-                  : isLast 
-                      ? Colors.red[200]!
-                      : Colors.blue[200]!,
-          width: 2,
+              : Colors.grey.withOpacity(0.1),
+          width: 1,
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12), // Reduced from 16
         child: Row(
           children: [
             // Number badge with gradient
             Container(
-              width: 50,
-              height: 50,
+              width: 44, // Reduced from 50
+              height: 44, // Reduced from 50
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -498,10 +546,10 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
                   colors: isVisited
                       ? [Colors.grey[400]!, Colors.grey[600]!]
                       : isFirst
-                          ? [Colors.green[400]!, Colors.green[600]!]
+                          ? [AppColors.indiaGreen, AppColors.indiaGreen.withOpacity(0.8)]
                           : isLast
-                              ? [Colors.red[400]!, Colors.red[600]!]
-                              : [Colors.blue[400]!, Colors.blue[600]!],
+                              ? [AppColors.saffron, AppColors.saffron.withOpacity(0.8)]
+                              : [AppColors.navyBlue, AppColors.navyBlue.withOpacity(0.8)],
                 ),
                 shape: BoxShape.circle,
                 boxShadow: [
@@ -522,7 +570,7 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 20,
+                        fontSize: 18, // Reduced from 20
                       ),
                     ),
                     if (isFirst && !isVisited)
@@ -530,7 +578,7 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
                         'START',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 8,
+                          fontSize: 7, // Reduced from 8
                           fontWeight: FontWeight.bold,
                         ),
                       )
@@ -539,7 +587,7 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
                         'END',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 8,
+                          fontSize: 7,
                           fontWeight: FontWeight.bold,
                         ),
                       )
@@ -548,7 +596,7 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
                         'DONE',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 8,
+                          fontSize: 7,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -556,7 +604,7 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12), // Reduced from 16
             
             // Place info
             Expanded(
@@ -567,103 +615,108 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
                     stop.name,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 15, // Reduced from 16
                       decoration: isVisited ? TextDecoration.lineThrough : null,
                       color: isVisited ? Colors.grey[600] : Colors.black,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isVisited ? Colors.grey[300] : Colors.grey[200],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          stop.category,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[700],
-                          ),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6, // Reduced from 8
+                          runSpacing: 4,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), // Reduced
+                              decoration: BoxDecoration(
+                                color: isVisited ? Colors.grey[300] : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                stop.category,
+                                style: TextStyle(
+                                  fontSize: 11, // Reduced from 12
+                                  color: AppColors.textGrey,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            if (isFirst && !isVisited)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.green[100],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.flag, size: 10, color: Colors.green[700]),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      'Start',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.green[700],
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (isLast && !isVisited)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[100],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.location_on, size: 10, color: Colors.red[700]),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      'End',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.red[700],
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (isVisited)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.green[100],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check_circle, size: 10, color: Colors.green[700]),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      'Visited',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.green[700],
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      if (isFirst && !isVisited) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green[100],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.flag, size: 12, color: Colors.green[700]),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Starting Point',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.green[700],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      if (isLast && !isVisited) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red[100],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.location_on, size: 12, color: Colors.red[700]),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Final Stop',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.red[700],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      if (isVisited) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green[100],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.check_circle, size: 12, color: Colors.green[700]),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Visited',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.green[700],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ],
@@ -673,7 +726,7 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
             // Action button (checkmark if visited, X if not)
             if (isVisited)
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6), // Reduced from 8
                 decoration: BoxDecoration(
                   color: Colors.green[100],
                   shape: BoxShape.circle,
@@ -681,14 +734,20 @@ class _SafeItineraryScreenState extends State<SafeItineraryScreen> {
                 child: Icon(
                   Icons.check_circle,
                   color: Colors.green[700],
-                  size: 32,
+                  size: 24, // Reduced from 32
                 ),
               )
             else
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.red),
-                onPressed: () => _removeStop(stop.id),
-                tooltip: 'Remove from itinerary',
+              SizedBox(
+                width: 36,
+                height: 36,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.red, size: 20),
+                  onPressed: () => _removeStop(stop.id),
+                  tooltip: 'Remove',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
               ),
           ],
         ),
