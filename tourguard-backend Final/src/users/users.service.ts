@@ -74,4 +74,18 @@ export class UsersService {
   async updateLastLogin(userId: string): Promise<void> {
     await this.usersRepo.update(userId, { lastLogin: new Date() });
   }
+
+  async updatePassword(phone: string, newPassword: string): Promise<User> {
+    const user = await this.findByPhone(phone);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const saltConfig = this.config.get<string>('BCRYPT_SALT');
+    const saltRounds = Number(saltConfig ?? 10);
+    user.password = await bcrypt.hash(newPassword, saltRounds);
+
+    console.log(`🔐 Password updated for user: ${user.email}`);
+    return this.usersRepo.save(user);
+  }
 }
