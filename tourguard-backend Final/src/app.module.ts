@@ -7,6 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { ToursModule } from './tours/tours.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { OtpModule } from './otp/otp.module';
+import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts.module';
+import { SOSAlertsModule } from './sos-alerts/sos-alerts.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -42,6 +44,8 @@ import { HealthController } from './health.controller';
     ToursModule,
     IncidentsModule,
     OtpModule,
+    EmergencyContactsModule,
+    SOSAlertsModule,
   ],
   controllers: [HealthController],
 })

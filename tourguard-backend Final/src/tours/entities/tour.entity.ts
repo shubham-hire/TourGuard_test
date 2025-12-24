@@ -9,16 +9,19 @@ export class Tour {
   @Column()
   title: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
   description: string;
 
   @Column({ nullable: true })
-  location: string;
+  destination: string;
 
-  @Column({ type: 'json', nullable: true })
-  meta: any;
+  @Column({ type: 'date', nullable: true })
+  startDate: Date;
 
-  @ManyToOne(() => User, { nullable: true })
+  @Column({ type: 'date', nullable: true })
+  endDate: Date;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   createdBy: User;
 
   @CreateDateColumn()
