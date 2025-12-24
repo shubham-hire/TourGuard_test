@@ -31,7 +31,7 @@ export class User {
   @Column({ default: false })
   otpVerified: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastLogin?: Date;
 
   @CreateDateColumn()
