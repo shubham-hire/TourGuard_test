@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/backend_service.dart';
@@ -70,7 +71,7 @@ class _ProfilePhotoScreenState extends State<ProfilePhotoScreen> {
       );
 
       // Navigate to dashboard
-      Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);
+      context.go('/dashboard');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Upload failed: $e')),
@@ -84,7 +85,7 @@ class _ProfilePhotoScreenState extends State<ProfilePhotoScreen> {
 
   void _skipForNow() {
     // Navigate to dashboard without uploading photo
-    Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);
+    context.go('/dashboard');
   }
 
   @override

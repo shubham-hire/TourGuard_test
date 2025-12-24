@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../widgets/custom_button.dart';
 
@@ -39,8 +40,8 @@ class SuccessScreen extends StatelessWidget {
             CustomButton(
               text: 'Go to Login',
               onPressed: () {
-                // Navigate to Login and remove all previous routes
-                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                // Navigate to Login using GoRouter
+                context.go('/login');
               },
             ),
           ],

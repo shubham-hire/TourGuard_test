@@ -88,8 +88,8 @@ const LoginPage: React.FC = () => {
 
                     <div className="text-sm text-gray-400 mt-4 p-4 bg-navy rounded border border-gray-700">
                         <p className="font-semibold mb-2">Demo Credentials:</p>
-                        <p>Email: admin@safety.com</p>
-                        <p>Password: password123</p>
+                        <p>Email: admin@tourguard.com</p>
+                        <p>Password: admin123</p>
                     </div>
                 </form>
             </div>

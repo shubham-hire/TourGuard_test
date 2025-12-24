@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -24,9 +25,9 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (mounted) {
       if (authProvider.user != null) {
-        Navigator.pushReplacementNamed(context, '/home');
+        context.go('/dashboard');  // GoRouter navigation
       } else {
-        Navigator.pushReplacementNamed(context, '/login');
+        context.go('/login');  // GoRouter navigation
       }
     }
   }

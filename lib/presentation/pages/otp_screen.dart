@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../core/constants/app_colors.dart';
@@ -102,12 +103,8 @@ class _OtpScreenState extends State<OtpScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Close dialog
-                // Navigate directly to dashboard
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/dashboard',
-                  (route) => false,
-                );
+                // Navigate directly to dashboard using GoRouter
+                context.go('/dashboard');
               },
               child: Text('Continue'),
             ),
@@ -144,7 +141,7 @@ class _OtpScreenState extends State<OtpScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: AppColors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => context.pop(),
         ),
       ),
       body: SafeArea(

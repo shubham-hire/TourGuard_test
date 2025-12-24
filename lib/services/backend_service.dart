@@ -317,4 +317,38 @@ class BackendService {
       throw Exception('Photo upload error: $e');
     }
   }
+
+  /// Request password reset - sends OTP to phone (OTP logged to backend console)
+  static Future<void> requestPasswordReset({required String phone}) async {
+    // Reuse the existing sendOtp endpoint - backend logs OTP to console
+    await sendOtp(phone: phone);
+    debugPrint('[ForgotPassword] OTP sent for phone: $phone - Check backend logs');
+  }
+
+  /// Reset password with OTP verification
+  static Future<void> resetPassword({
+    required String phone,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/reset-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'phone': phone,
+          'otp': otp,
+          'newPassword': newPassword,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (data['success'] != true) {
+        throw Exception(data['message'] ?? 'Password reset failed');
+      }
+    } catch (e) {
+      throw Exception('Password reset error: $e');
+    }
+  }
 }

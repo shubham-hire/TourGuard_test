@@ -8,6 +8,7 @@ class CustomTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final bool isPassword;
   final TextInputType keyboardType;
+  final IconData? prefixIcon;
   final Widget? suffixIcon;
   final bool readOnly;
   final VoidCallback? onTap;
@@ -21,6 +22,7 @@ class CustomTextField extends StatelessWidget {
     this.isPassword = false,
     this.keyboardType = TextInputType.text,
     this.suffixIcon,
+    this.prefixIcon,
     this.readOnly = false,
     this.onTap,
   }) : super(key: key);
@@ -65,6 +67,7 @@ class CustomTextField extends StatelessWidget {
             filled: true,
             fillColor: AppColors.white,
             suffixIcon: suffixIcon,
+            prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: AppColors.grey) : null,
           ),
         ),
       ],

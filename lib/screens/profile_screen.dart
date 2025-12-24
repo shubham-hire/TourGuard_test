@@ -5,6 +5,8 @@ import '../services/localization_service.dart';
 import '../presentation/providers/auth_provider.dart';
 import '../core/constants/app_colors.dart';
 
+import 'package:go_router/go_router.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -80,8 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               await authProvider.logout();
               if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/login', (route) => false);
+                context.go('/login');
               }
             },
           ),

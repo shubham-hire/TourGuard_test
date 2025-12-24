@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_colors.dart';
@@ -75,11 +76,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       final success = await authProvider.register(data);
 
       if (success) {
-        Navigator.pushNamed(
-          context, 
-          '/otp', 
-          arguments: _phoneController.text
-        );
+        context.push('/otp', extra: _phoneController.text);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(authProvider.error ?? 'Registration Failed')),
@@ -92,259 +89,417 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Create Account',
-          style: TextStyle(color: AppColors.black, fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: SafeArea(
-        child: Consumer<AuthProvider>(
-          builder: (context, auth, child) {
-            return SingleChildScrollView(
-              padding: EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // User Type Toggle
-                    Container(
-                      padding: EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: AppColors.lightGrey,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          // Background Watermark (Ashoka Emblem)
+          Positioned.fill(
+            child: Center(
+              child: Opacity(
+                opacity: 0.08,
+                child: Image.asset(
+                  'assets/images/ashoka_emblem.jpg',
+                  width: 300,
+                  height: 300,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Icon(
+                    Icons.radio_button_checked,
+                    size: 300,
+                    color: AppColors.grey.withOpacity(0.2),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Top Saffron Strip
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 12,
+              color: AppColors.saffron,
+            ),
+          ),
+
+          // Bottom Green Strip
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 12,
+              color: AppColors.indiaGreen,
+            ),
+          ),
+
+          // Main Content
+          SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: GestureDetector(
-                                onTap: () => auth.setRegistrationType('domestic'),
-                              child: Container(
-                                padding: EdgeInsets.symmetric(vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: auth.registrationType == 'domestic'
-                                      ? AppColors.white
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: auth.registrationType == 'domestic'
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.05),
-                                            blurRadius: 4,
-                                            offset: Offset(0, 2),
-                                          )
-                                        ]
-                                      : [],
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'Domestic',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: auth.registrationType == 'domestic'
-                                          ? AppColors.primaryBlue
-                                          : AppColors.grey,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                          // Custom Back Button & Header
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton(
+                              icon: Icon(Icons.arrow_back, color: AppColors.navyBlue),
+                              onPressed: () => context.pop(),
                             ),
                           ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => auth.setRegistrationType('international'),
-                              child: Container(
-                                padding: EdgeInsets.symmetric(vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: auth.registrationType == 'international'
-                                      ? AppColors.white
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: auth.registrationType == 'international'
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.05),
-                                            blurRadius: 4,
-                                            offset: Offset(0, 2),
-                                          )
-                                        ]
-                                      : [],
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'International',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: auth.registrationType == 'international'
-                                          ? AppColors.primaryBlue
-                                          : AppColors.grey,
-                                    ),
+                          
+                          // Government Header
+                          Center(
+                            child: Column(
+                              children: [
+                                Text(
+                                  'GOVERNMENT OF INDIA',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold, // changed to bold
+                                    color: AppColors.black,
+                                    letterSpacing: 1.2,
                                   ),
                                 ),
-                              ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'MINISTRY OF TOURISM',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold, // changed to bold
+                                    color: AppColors.grey,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                SizedBox(height: 24),
+                                Icon(Icons.person_add_alt_1_outlined, size: 48, color: AppColors.navyBlue),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Create Account',
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.navyBlue,
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+                          SizedBox(height: 32),
+
+                          Consumer<AuthProvider>(
+                            builder: (context, auth, child) {
+                              return Column(
+                                children: [
+                                  // User Type Toggle
+                                  Container(
+                                    padding: EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.lightGrey,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppColors.grey.withOpacity(0.2)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => auth.setRegistrationType('domestic'),
+                                            child: Container(
+                                              padding: EdgeInsets.symmetric(vertical: 12),
+                                              decoration: BoxDecoration(
+                                                color: auth.registrationType == 'domestic'
+                                                    ? AppColors.white
+                                                    : Colors.transparent,
+                                                borderRadius: BorderRadius.circular(8),
+                                                boxShadow: auth.registrationType == 'domestic'
+                                                    ? [
+                                                        BoxShadow(
+                                                          color: Colors.black.withOpacity(0.05),
+                                                          blurRadius: 4,
+                                                          offset: Offset(0, 2),
+                                                        )
+                                                      ]
+                                                    : [],
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  'Domestic',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: auth.registrationType == 'domestic'
+                                                        ? AppColors.primaryBlue
+                                                        : AppColors.grey,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => auth.setRegistrationType('international'),
+                                            child: Container(
+                                              padding: EdgeInsets.symmetric(vertical: 12),
+                                              decoration: BoxDecoration(
+                                                color: auth.registrationType == 'international'
+                                                    ? AppColors.white
+                                                    : Colors.transparent,
+                                                borderRadius: BorderRadius.circular(8),
+                                                boxShadow: auth.registrationType == 'international'
+                                                    ? [
+                                                        BoxShadow(
+                                                          color: Colors.black.withOpacity(0.05),
+                                                          blurRadius: 4,
+                                                          offset: Offset(0, 2),
+                                                        )
+                                                      ]
+                                                    : [],
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  'International',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: auth.registrationType == 'international'
+                                                        ? AppColors.primaryBlue
+                                                        : AppColors.grey,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(height: 24),
+
+                                  CustomTextField(
+                                    label: 'Full Name',
+                                    hint: 'As per official ID',
+                                    controller: _nameController,
+                                    validator: (v) => Validators.validateRequired(v, 'Name'),
+                                    prefixIcon: Icons.badge_outlined,
+                                  ),
+                                  SizedBox(height: 16),
+                                  
+                                  CustomTextField(
+                                    label: 'Email',
+                                    hint: 'Enter your email',
+                                    controller: _emailController,
+                                    validator: Validators.validateEmail,
+                                    keyboardType: TextInputType.emailAddress,
+                                    prefixIcon: Icons.email_outlined,
+                                  ),
+                                  SizedBox(height: 16),
+
+                                  CustomTextField(
+                                    label: 'Phone Number',
+                                    hint: 'Enter your phone number',
+                                    controller: _phoneController,
+                                    validator: Validators.validatePhone,
+                                    keyboardType: TextInputType.phone,
+                                    prefixIcon: Icons.phone_outlined,
+                                  ),
+                                  SizedBox(height: 16),
+
+                                  if (auth.registrationType == 'international') ...[
+                                      DropdownButtonFormField<String>(
+                                        value: _selectedNationality,
+                                        decoration: InputDecoration(
+                                          labelText: 'Nationality',
+                                          prefixIcon: Icon(Icons.public, color: AppColors.grey),
+                                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: BorderSide(color: AppColors.grey.withOpacity(0.3)),
+                                          ),
+                                          filled: true,
+                                          fillColor: AppColors.white,
+                                        ),
+                                        items: _nationalities.map((String value) {
+                                          return DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(value),
+                                          );
+                                        }).toList(),
+                                        onChanged: (newValue) {
+                                          setState(() {
+                                            _selectedNationality = newValue;
+                                          });
+                                        },
+                                        validator: (v) => v == null ? 'Please select nationality' : null,
+                                      ),
+                                      SizedBox(height: 16),
+                                  ],
+
+                                  CustomTextField(
+                                    label: 'Password',
+                                    hint: 'Create a password',
+                                    controller: _passwordController,
+                                    isPassword: true,
+                                    validator: Validators.validatePassword,
+                                    prefixIcon: Icons.lock_outline,
+                                  ),
+                                  SizedBox(height: 16),
+
+                                  CustomTextField(
+                                    label: 'Confirm Password',
+                                    hint: 'Confirm your password',
+                                    controller: _confirmPasswordController,
+                                    isPassword: true,
+                                    validator: (val) {
+                                      if (val != _passwordController.text) return 'Passwords do not match';
+                                      return null;
+                                    },
+                                    prefixIcon: Icons.lock_reset_outlined,
+                                  ),
+                                  SizedBox(height: 24),
+
+                                  // Document Upload
+                                  Container(
+                                    width: double.infinity,
+                                    padding: EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceWhite,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppColors.grey.withOpacity(0.3)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          auth.registrationType == 'domestic' 
+                                              ? 'Upload Aadhaar Card (Required)' 
+                                              : 'Upload Passport Photo (Required)',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: AppColors.navyBlue,
+                                          ),
+                                        ),
+                                        SizedBox(height: 12),
+                                        GestureDetector(
+                                          onTap: () => _pickImage(context),
+                                          child: Container(
+                                            height: 140,
+                                            width: double.infinity,
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: AppColors.primaryBlue.withOpacity(0.3),
+                                                style: BorderStyle.solid,
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                            child: auth.selectedDocument != null
+                                                ? ClipRRect(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    child: Image.file(
+                                                      auth.selectedDocument!,
+                                                      fit: BoxFit.cover,
+                                                    ),
+                                                  )
+                                                : Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.cloud_upload_outlined,
+                                                        size: 32,
+                                                        color: AppColors.primaryBlue,
+                                                      ),
+                                                      SizedBox(height: 8),
+                                                      Text(
+                                                        'Tap to browse',
+                                                        style: TextStyle(
+                                                          color: AppColors.primaryBlue,
+                                                          fontWeight: FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(height: 32),
+
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 52,
+                                    child: ElevatedButton(
+                                      onPressed: auth.isLoading ? null : _handleRegistration,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primaryBlue,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: auth.isLoading
+                                          ? SizedBox(
+                                              height: 24,
+                                              width: 24,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : Text(
+                                              'COMPLETE REGISTRATION',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 1.0,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                  SizedBox(height: 30),
+                                ],
+                              );
+                            },
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(height: 24),
+                  ),
+                ),
 
-                    CustomTextField(
-                      label: 'Full Name',
-                      hint: 'Enter your full name',
-                      controller: _nameController,
-                      validator: (v) => Validators.validateRequired(v, 'Name'),
-                    ),
-                    SizedBox(height: 16),
-                    
-                    CustomTextField(
-                      label: 'Email',
-                      hint: 'Enter your email',
-                      controller: _emailController,
-                      validator: Validators.validateEmail,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    SizedBox(height: 16),
-
-                    CustomTextField(
-                      label: 'Phone Number',
-                      hint: 'Enter your phone number',
-                      controller: _phoneController,
-                      validator: Validators.validatePhone,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    SizedBox(height: 16),
-
-                    if (auth.registrationType == 'international') ...[
-                      Text(
-                        'Nationality',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                          color: AppColors.black.withOpacity(0.7),
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        value: _selectedNationality,
-                        decoration: InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: AppColors.grey.withOpacity(0.3)),
-                          ),
-                        ),
-                        items: _nationalities.map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                        onChanged: (newValue) {
-                          setState(() {
-                            _selectedNationality = newValue;
-                          });
-                        },
-                        validator: (v) => v == null ? 'Please select nationality' : null,
-                      ),
-                      SizedBox(height: 16),
-                    ],
-
-                    CustomTextField(
-                      label: 'Password',
-                      hint: 'Create a password',
-                      controller: _passwordController,
-                      isPassword: true,
-                      validator: Validators.validatePassword,
-                    ),
-                    SizedBox(height: 16),
-
-                    CustomTextField(
-                      label: 'Confirm Password',
-                      hint: 'Confirm your password',
-                      controller: _confirmPasswordController,
-                      isPassword: true,
-                      validator: (val) {
-                        if (val != _passwordController.text) return 'Passwords do not match';
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: 24),
-
-                    // Document Upload
+                // Footer
+                Column(
+                  children: [
                     Text(
-                      auth.registrationType == 'domestic' 
-                          ? 'Upload Aadhaar Card' 
-                          : 'Upload Passport Photo',
+                      'वसुधैव कुटुम्बकम्',
                       style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                        color: AppColors.black.withOpacity(0.7),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.black,
+                      ),
+                    ),
+                    Text(
+                      'The World Is One Family',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.grey,
                       ),
                     ),
                     SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () => _pickImage(context),
-                      child: Container(
-                        height: 150,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: AppColors.lightGrey,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.grey.withOpacity(0.3),
-                            style: BorderStyle.solid,
-                          ),
-                        ),
-                        child: auth.selectedDocument != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.file(
-                                  auth.selectedDocument!,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.cloud_upload_outlined,
-                                    size: 40,
-                                    color: AppColors.primaryBlue,
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'Click to upload',
-                                    style: TextStyle(
-                                      color: AppColors.grey,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ),
-                    SizedBox(height: 32),
-
-                    CustomButton(
-                      text: 'Register',
-                      onPressed: _handleRegistration,
-                      isLoading: auth.isLoading,
-                    ),
-                    SizedBox(height: 20),
                   ],
                 ),
-              ),
-            );
-          },
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -75,10 +75,10 @@ class AuthService {
   }
 
   Future<void> forgotPassword(String phone) async {
-    throw Exception('Forgot password is not configured yet.');
+    await BackendService.requestPasswordReset(phone: phone);
   }
 
   Future<void> resetPassword(String phone, String otp, String password) async {
-    throw Exception('Reset password is not configured yet.');
+    await BackendService.resetPassword(phone: phone, otp: otp, newPassword: password);
   }
 }
