@@ -18,8 +18,9 @@ import { SosEvent, Incident } from '../../types';
 import { sosApi, incidentsApi } from '../../services/api';
 import { initializeSocket, onSosNew, onSosUpdate, disconnectSocket } from '../../services/socket';
 import RecentIncidents from './RecentIncidents';
-import { AIHealthStatus } from '../AIHealthStatus';
-import { AIFeaturesStatus } from '../AIFeaturesStatus';
+// AI components disabled - ML Engine not running
+// import { AIHealthStatus } from '../AIHealthStatus';
+// import { AIFeaturesStatus } from '../AIFeaturesStatus';
 
 const Dashboard: React.FC = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -166,12 +167,12 @@ const Dashboard: React.FC = () => {
                                 {events.filter((e) => e.status === 'pending').length} pending alerts
                             </span>
                         </div>
-                        <AIHealthStatus />
+                        {/* <AIHealthStatus /> */}
                     </div>
 
                     {/* AI Features Status Panel */}
                     <div className="px-4 pt-4">
-                        <AIFeaturesStatus />
+                        {/* <AIFeaturesStatus /> */}
                     </div>
 
                     {/* Main grid layout */}
