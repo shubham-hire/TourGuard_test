@@ -24,9 +24,24 @@ let UsersController = class UsersController {
         this.usersService = usersService;
     }
     async register(dto) {
+        const existingUser = await this.usersService.findByPhone(dto.phone) ||
+            await this.usersService.findByEmail(dto.email);
+        if (existingUser) {
+            throw new common_1.HttpException('User already exists with this email or phone', common_1.HttpStatus.CONFLICT);
+        }
         const created = await this.usersService.create(dto);
-        delete created.password;
-        return created;
+        const token = await this.usersService.generateToken(created);
+        return {
+            success: true,
+            message: 'Registration successful',
+            data: {
+                id: created.id,
+                name: created.name,
+                email: created.email,
+                phone: created.phone,
+                token,
+            },
+        };
     }
     async getOne(id) {
         const u = await this.usersService.findById(id);
@@ -72,6 +87,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "uploadPhoto", null);
 exports.UsersController = UsersController = __decorate([
-    (0, common_1.Controller)('api/users'),
+    (0, common_1.Controller)('api/user'),
     __metadata("design:paramtypes", [users_service_1.UsersService])
 ], UsersController);

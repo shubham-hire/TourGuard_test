@@ -10,10 +10,7 @@ export declare class Incident {
     title: string;
     description: string;
     severity: IncidentSeverity;
-    location: {
-        lat: number;
-        lng: number;
-    } | null;
+    location: string | null;
     reportedBy: User;
     createdAt: Date;
 }

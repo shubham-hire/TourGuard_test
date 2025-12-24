@@ -15,4 +15,5 @@ export declare class UsersService {
     uploadProfilePhoto(userId: string, photoUrl: string): Promise<User>;
     generateToken(user: User): Promise<string>;
     updateLastLogin(userId: string): Promise<void>;
+    updatePassword(phone: string, newPassword: string): Promise<User>;
 }

@@ -12,6 +12,8 @@ export declare class AuthService {
             email: any;
             name: any;
             role: any;
+            phone: any;
+            hashId: any;
         };
     }>;
 }

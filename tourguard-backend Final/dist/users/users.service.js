@@ -26,7 +26,8 @@ let UsersService = class UsersService {
         this.config = config;
     }
     async create(userData) {
-        const saltRounds = this.config.get('BCRYPT_SALT') || 10;
+        const saltConfig = this.config.get('BCRYPT_SALT');
+        const saltRounds = Number(saltConfig !== null && saltConfig !== void 0 ? saltConfig : 10);
         const hashed = await bcrypt.hash(userData.password, saltRounds);
         const user = this.usersRepo.create({ ...userData, password: hashed });
         return this.usersRepo.save(user);
@@ -76,6 +77,17 @@ let UsersService = class UsersService {
     }
     async updateLastLogin(userId) {
         await this.usersRepo.update(userId, { lastLogin: new Date() });
+    }
+    async updatePassword(phone, newPassword) {
+        const user = await this.findByPhone(phone);
+        if (!user) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        const saltConfig = this.config.get('BCRYPT_SALT');
+        const saltRounds = Number(saltConfig !== null && saltConfig !== void 0 ? saltConfig : 10);
+        user.password = await bcrypt.hash(newPassword, saltRounds);
+        console.log(`🔐 Password updated for user: ${user.email}`);
+        return this.usersRepo.save(user);
     }
 };
 exports.UsersService = UsersService;

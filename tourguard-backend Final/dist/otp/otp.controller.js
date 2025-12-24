@@ -26,14 +26,12 @@ let OtpController = class OtpController {
         if (!phone) {
             throw new common_1.HttpException('Phone number is required', common_1.HttpStatus.BAD_REQUEST);
         }
-        const user = await this.usersService.findByPhone(phone);
-        if (!user) {
-            throw new common_1.HttpException('No user found with this phone number', common_1.HttpStatus.NOT_FOUND);
-        }
-        this.otpService.generateOtp(phone);
+        const otp = this.otpService.generateOtp(phone);
+        console.log(`📱 OTP for ${phone}: ${otp}`);
         return {
             success: true,
             message: 'OTP sent successfully',
+            data: { otp },
         };
     }
     async verifyOtp(body) {

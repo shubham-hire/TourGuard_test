@@ -9,6 +9,9 @@ export declare class OtpController {
     }): Promise<{
         success: boolean;
         message: string;
+        data: {
+            otp: string;
+        };
     }>;
     verifyOtp(body: {
         phone: string;

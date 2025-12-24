@@ -35,12 +35,12 @@ __decorate([
     __metadata("design:type", String)
 ], Incident.prototype, "description", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'enum', enum: IncidentSeverity, default: IncidentSeverity.MEDIUM }),
+    (0, typeorm_1.Column)({ type: 'text', default: IncidentSeverity.MEDIUM }),
     __metadata("design:type", String)
 ], Incident.prototype, "severity", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'json', nullable: true }),
-    __metadata("design:type", Object)
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
 ], Incident.prototype, "location", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: true }),

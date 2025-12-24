@@ -16,6 +16,7 @@ const auth_module_1 = require("./auth/auth.module");
 const tours_module_1 = require("./tours/tours.module");
 const incidents_module_1 = require("./incidents/incidents.module");
 const otp_module_1 = require("./otp/otp.module");
+const health_controller_1 = require("./health.controller");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -25,15 +26,10 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({ isGlobal: true, load: [configuration_1.default] }),
             typeorm_1.TypeOrmModule.forRootAsync({
                 useFactory: (config) => ({
-                    type: 'postgres',
-                    host: config.get('DATABASE_HOST'),
-                    port: +config.get('DATABASE_PORT'),
-                    username: config.get('DATABASE_USER'),
-                    password: config.get('DATABASE_PASSWORD'),
-                    database: config.get('DATABASE_NAME'),
+                    type: 'sqlite',
+                    database: 'database.sqlite',
                     entities: [__dirname + '/**/*.entity{.ts,.js}'],
-                    synchronize: false,
-                    migrations: [__dirname + '/migrations/*{.ts,.js}'],
+                    synchronize: true,
                 }),
                 inject: [config_1.ConfigService],
             }),
@@ -43,5 +39,6 @@ exports.AppModule = AppModule = __decorate([
             incidents_module_1.IncidentsModule,
             otp_module_1.OtpModule,
         ],
+        controllers: [health_controller_1.HealthController],
     })
 ], AppModule);

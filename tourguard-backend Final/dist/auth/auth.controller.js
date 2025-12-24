@@ -16,6 +16,8 @@ exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
 const auth_service_1 = require("./auth.service");
 const class_validator_1 = require("class-validator");
+const otp_service_1 = require("../otp/otp.service");
+const users_service_1 = require("../users/users.service");
 class LoginDto {
 }
 __decorate([
@@ -26,13 +28,60 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], LoginDto.prototype, "password", void 0);
+class ResetPasswordDto {
+}
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ResetPasswordDto.prototype, "phone", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ResetPasswordDto.prototype, "otp", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(6),
+    __metadata("design:type", String)
+], ResetPasswordDto.prototype, "newPassword", void 0);
 let AuthController = class AuthController {
-    constructor(authService) {
+    constructor(authService, otpService, usersService) {
         this.authService = authService;
+        this.otpService = otpService;
+        this.usersService = usersService;
     }
     async login(dto) {
         const user = await this.authService.validateUser(dto.email, dto.password);
-        return this.authService.login(user);
+        const authResult = await this.authService.login(user);
+        return {
+            success: true,
+            message: 'Login successful',
+            data: {
+                id: authResult.user.id,
+                name: authResult.user.name || '',
+                email: authResult.user.email,
+                phone: authResult.user.phone || '',
+                hashId: authResult.user.hashId || null,
+                role: authResult.user.role,
+                token: authResult.access_token,
+            },
+        };
+    }
+    async resetPassword(dto) {
+        const isValidOtp = this.otpService.verifyOtp(dto.phone, dto.otp);
+        if (!isValidOtp) {
+            throw new common_1.BadRequestException('Invalid or expired OTP');
+        }
+        try {
+            await this.usersService.updatePassword(dto.phone, dto.newPassword);
+            this.otpService.clearOtp(dto.phone);
+            return {
+                success: true,
+                message: 'Password reset successfully',
+            };
+        }
+        catch (error) {
+            throw new common_1.BadRequestException('Failed to reset password. User may not exist.');
+        }
     }
 };
 exports.AuthController = AuthController;
@@ -43,7 +92,16 @@ __decorate([
     __metadata("design:paramtypes", [LoginDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
+__decorate([
+    (0, common_1.Post)('reset-password'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [ResetPasswordDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "resetPassword", null);
 exports.AuthController = AuthController = __decorate([
-    (0, common_1.Controller)('auth'),
-    __metadata("design:paramtypes", [auth_service_1.AuthService])
+    (0, common_1.Controller)('api/auth'),
+    __metadata("design:paramtypes", [auth_service_1.AuthService,
+        otp_service_1.OtpService,
+        users_service_1.UsersService])
 ], AuthController);
