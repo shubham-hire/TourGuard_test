@@ -11,14 +11,12 @@ export class EmergencyContactsService {
     ) { }
 
     async create(userId: string, dto: { name: string; phone: string; relationship?: string; isPrimary?: boolean }) {
-        // Store userId as simple string, don't try to link to User entity
         const contact = this.repo.create({
             name: dto.name,
             phone: dto.phone,
             relationship: dto.relationship,
             isPrimary: dto.isPrimary ?? false,
-            userId: userId, // Store as string
-            user: null, // Don't link to User entity
+            userId: userId,
         });
         return this.repo.save(contact);
     }

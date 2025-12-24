@@ -29,7 +29,6 @@ let EmergencyContactsService = class EmergencyContactsService {
             relationship: dto.relationship,
             isPrimary: (_a = dto.isPrimary) !== null && _a !== void 0 ? _a : false,
             userId: userId,
-            user: null,
         });
         return this.repo.save(contact);
     }

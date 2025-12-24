@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmergencyContact = void 0;
 const typeorm_1 = require("typeorm");
-const user_entity_1 = require("../../users/entities/user.entity");
 let EmergencyContact = class EmergencyContact {
 };
 exports.EmergencyContact = EmergencyContact;
@@ -19,10 +18,6 @@ __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)('uuid'),
     __metadata("design:type", String)
 ], EmergencyContact.prototype, "id", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: 'SET NULL', nullable: true }),
-    __metadata("design:type", user_entity_1.User)
-], EmergencyContact.prototype, "user", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
