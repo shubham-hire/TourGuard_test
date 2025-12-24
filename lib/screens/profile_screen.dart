@@ -78,12 +78,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.logout, color: AppColors.error),
-            onPressed: () async {
-              await authProvider.logout();
-              if (context.mounted) {
-                context.go('/login');
-              }
+            icon: Icon(Icons.settings, color: AppColors.navyBlue),
+            onPressed: () {
+              context.push('/settings');
             },
           ),
         ],

@@ -12,6 +12,7 @@ import '../presentation/pages/success_screen.dart';
 import '../presentation/pages/profile_photo_screen.dart';
 import '../presentation/pages/forgot_password_screen.dart';
 import '../presentation/pages/reset_password_screen.dart';
+import '../screens/settings_screen_v2.dart';
 import '../core/constants/app_colors.dart';
 
 /// Main navigation shell - holds the bottom nav bar
@@ -156,6 +157,12 @@ final router = GoRouter(
         final phone = state.extra as String? ?? '';
         return ResetPasswordScreen(phone: phone);
       },
+    ),
+    
+    // Settings Route
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => const SettingsScreen(),
     ),
 
     // Main app with bottom navigation (ShellRoute keeps nav bar persistent)

@@ -229,8 +229,13 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                   actions: [
                     TextButton(
                       onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pop(context);
+                        Navigator.of(context).pop(); // Close dialog
+                        // Use Future.microtask to avoid navigator lock
+                        Future.microtask(() {
+                          if (Navigator.of(context).canPop()) {
+                            Navigator.of(context).pop(); // Go back to previous screen
+                          }
+                        });
                       },
                       child: Text(tr('ok')),
                     ),

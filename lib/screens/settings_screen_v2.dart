@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../models/contact_model.dart';
+import '../presentation/providers/auth_provider.dart';
 import '../services/family_tracking_service.dart';
 import '../services/localization_service.dart';
 import '../services/location_service.dart';
@@ -394,14 +397,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 child: Text(tr('cancel')),
                               ),
                               TextButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content:
-                                          Text(tr('logged_out_successfully')),
-                                    ),
-                                  );
+                                onPressed: () async {
+                                  Navigator.pop(context); // Close dialog
+                                  
+                                  // Perform logout
+                                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                  await authProvider.logout();
+                                  
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(tr('logged_out_successfully')),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                    context.go('/login');
+                                  }
                                 },
                                 child: Text(
                                   tr('logout'),

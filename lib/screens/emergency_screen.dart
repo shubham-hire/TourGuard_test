@@ -14,6 +14,7 @@ import '../services/localization_service.dart';
 import '../services/api_service.dart';
 import '../services/api_environment.dart';
 import '../services/backend_service.dart';
+import '../core/constants/app_colors.dart';
 
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
@@ -370,95 +371,81 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       valueListenable: LocalizationService.languageNotifier,
       builder: (context, language, _) {
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: const Color(0xFFF9FAFB), // Surface white
+          appBar: AppBar(
+            title: Text(
+              tr('emergency'),
+              style: const TextStyle(
+                color: AppColors.navyBlue,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            centerTitle: true,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: AppColors.navyBlue),
+          ),
           body: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildHeader(),
-                const SizedBox(height: 20),
-                _buildSOSButton(),
-                const SizedBox(height: 12),
-                _buildVoiceStatusBanner(),
+                // Voice Status
+                Center(child: _buildVoiceStatusBanner()),
                 const SizedBox(height: 30),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+
+                // SOS Button Section
+                Center(
                   child: Column(
                     children: [
                       Text(
-                        tr('emergency_contacts_title'),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black.withOpacity(0.8),
+                        tr('Are you in emergency ?'),
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.navyBlue,
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      _buildContactsGrid(),
+                      const SizedBox(height: 8),
+                      Text(
+                        tr('Press SOS'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textGrey,
+                        ),
+                      ),
                       const SizedBox(height: 30),
-                      _buildActionButtons(),
-                      const SizedBox(height: 30),
+                      _buildSOSButton(),
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 40),
+
+                // Emergency Services Grid
+                // Text(
+                //   // tr('Emergency Services'),
+                //   style: const TextStyle(
+                //     fontSize: 18,
+                //     fontWeight: FontWeight.bold,
+                //     color: AppColors.textDark,
+                //   ),
+                // ),
+                const SizedBox(height: 16),
+                _buildContactsGrid(),
+
+                const SizedBox(height: 30),
+
+                // Incident Report Button
+                _buildActionButtons(),
+
+                const SizedBox(height: 100), // Added extra padding for scrolling
               ],
             ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildHeader() {
-    return Stack(
-      children: [
-        ClipPath(
-          clipper: HeaderClipper(),
-          child: Container(
-            height: 280,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  Color(0xFF2196F3), // Blue
-                  Color(0x801976D2), // Darker Blue with fade (50% opacity)
-                  Color(0x001976D2), // Fully transparent for fade effect
-                ],
-                stops: [0.0, 0.7, 1.0],
-              ),
-            ),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  const SizedBox(height: 50), // Increased spacing since notch is gone
-                  Text(
-                    'Are you in emergency',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: Text(
-                      'Press the button below help will reach you soon',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 14,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -469,46 +456,55 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
           _showSOSConfirmDialog();
         }
       },
-      child: Container(
-        width: 200,
-        height: 200,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        width: 220,
+        height: 220,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: _sosPressed ? Colors.green : const Color(0xFFEF4444), // Red or Green
+          gradient: LinearGradient(
+            colors: _sosPressed
+                ? [AppColors.indiaGreen, Colors.greenAccent]
+                : [AppColors.error, Colors.redAccent],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           boxShadow: [
             BoxShadow(
-              color: (_sosPressed ? Colors.green : const Color(0xFFEF4444)).withOpacity(0.2),
+              color: (_sosPressed ? AppColors.indiaGreen : AppColors.error).withOpacity(0.4),
               blurRadius: 30,
-              spreadRadius: 15,
+              spreadRadius: 10,
+              offset: const Offset(0, 10),
             ),
             BoxShadow(
-              color: Colors.white.withOpacity(0.8),
-              blurRadius: 0,
-              spreadRadius: -15,
+              color: Colors.white.withOpacity(0.5),
+              blurRadius: 10,
             ),
           ],
           border: Border.all(
-            color: _sosPressed ? Colors.green.shade100 : Colors.red.shade100,
-            width: 20,
+            color: Colors.white.withOpacity(0.3),
+            width: 8,
           ),
         ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(40.0),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                _sosPressed ? tr('alert_sent') : tr('sos'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+             Icon(
+              _sosPressed ? Icons.check_circle_outline : Icons.sos,
+              size: 64,
+              color: Colors.white,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _sosPressed ? tr('sent') : tr('sos'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2,
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -520,35 +516,37 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     String label;
 
     if (!_speechEnabled) {
-      statusColor = Colors.grey;
+      statusColor = AppColors.grey;
       icon = Icons.mic_off;
       label = tr('voice_control_unavailable');
     } else if (_isListeningForHelp) {
-      statusColor = Colors.green;
+      statusColor = AppColors.indiaGreen;
       icon = Icons.hearing;
       label = tr('voice_control_listening');
     } else {
-      statusColor = Colors.orange;
+      statusColor = AppColors.saffron;
       icon = Icons.mic;
       label = tr('voice_control_ready');
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: statusColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: statusColor.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: statusColor, size: 20),
+          Icon(icon, color: statusColor, size: 18),
           const SizedBox(width: 8),
           Text(
             label,
             style: TextStyle(
               color: statusColor,
-              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],
@@ -561,26 +559,26 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       {
         'name': tr('police'),
         'icon': Icons.local_police_outlined,
-        'color': const Color(0xFF2196F3), // Blue
+        'color': AppColors.navyBlue,
         'number': '100'
       },
       {
         'name': tr('fire'),
         'icon': Icons.local_fire_department_outlined,
-        'color': const Color(0xFF2196F3), // Blue
+        'color': AppColors.saffron,
         'number': '101'
       },
       {
         'name': tr('ambulance'),
         'icon': Icons.medical_services_outlined,
-        'color': const Color(0xFF2196F3), // Blue
+        'color': AppColors.error,
         'number': '102'
       },
       {
-        'name': 'Local Police',
-        'icon': Icons.local_taxi_outlined,
-        'color': const Color(0xFF2196F3), // Blue
-        'number': '+91 2560 234567'
+        'name': 'Helpline',
+        'icon': Icons.support_agent,
+        'color': Colors.purple,
+        'number': '112'
       },
     ];
 
@@ -590,32 +588,34 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 15,
-        mainAxisSpacing: 15,
-        childAspectRatio: 2.5,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.3,
       ),
       itemCount: contacts.length,
       itemBuilder: (context, index) {
         final contact = contacts[index];
         return InkWell(
           onTap: () => _makeEmergencyCall(contact['number'] as String),
+          borderRadius: BorderRadius.circular(16),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.black.withOpacity(0.04),
                   blurRadius: 10,
-                  spreadRadius: 2,
+                  offset: const Offset(0, 4),
                 ),
               ],
+              border: Border.all(color: AppColors.lightGrey),
             ),
-            child: Row(
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: (contact['color'] as Color).withOpacity(0.1),
                     shape: BoxShape.circle,
@@ -623,18 +623,25 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                   child: Icon(
                     contact['icon'] as IconData,
                     color: contact['color'] as Color,
-                    size: 20,
+                    size: 28,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(
-                    contact['name'] as String,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 12),
+                Text(
+                  contact['name'] as String,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  contact['number'] as String,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textGrey,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -650,47 +657,58 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
+                color: Colors.black.withOpacity(0.04),
                 blurRadius: 10,
-                spreadRadius: 2,
+                offset: const Offset(0, 4),
               ),
             ],
+            border: Border.all(color: AppColors.lightGrey),
           ),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withOpacity(0.1),
+                  color: AppColors.navyBlue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.directions_car, color: Color(0xFFEF4444)),
+                child: const Icon(Icons.directions_car, color: AppColors.navyBlue),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 16),
               Expanded(
                 child: TextField(
                   controller: _vehicleController,
                   decoration: InputDecoration(
-                    labelText: 'Enter your vehicle number',
-                    border: OutlineInputBorder(),
+                    hintText: 'Share Vehicle Number',
+                    hintStyle: TextStyle(color: AppColors.textGrey),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
                   ),
                 ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.send, color: AppColors.navyBlue),
+                onPressed: () {
+                  // Handle send logic
+                  _vehicleController.clear();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Vehicle details shared with contacts')),
+                  );
+                },
               ),
             ],
           ),
         ),
-        const SizedBox(height: 15),
-        _buildActionButton(
-          tr('report_incident'),
-          Icons.warning_amber_rounded,
-          const Color(0xFFF59E0B),
-          () {
+        const SizedBox(height: 16),
+        InkWell(
+          onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -698,50 +716,61 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
               ),
             );
           },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              border: Border.all(color: AppColors.lightGrey),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.report_problem_outlined, color: Colors.orange),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tr('report_incident'),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Report unsafe conditions or incidents',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.grey),
+              ],
+            ),
+          ),
         ),
-        // ...existing code...
       ],
-    );
-  }
-
-  Widget _buildActionButton(
-      String title, IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 10,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 20),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -751,19 +780,25 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(
             tr('sos_alert'),
-            style: const TextStyle(color: Colors.red),
+            style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
           ),
           content: Text(
             triggeredByVoice
                 ? tr('voice_sos_alert_message')
                 : tr('sos_alert_message'),
+            style: const TextStyle(fontSize: 16),
           ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(tr('cancel')),
+              child: Text(
+                tr('cancel'),
+                style: const TextStyle(color: AppColors.textGrey),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
@@ -772,7 +807,6 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                 setState(() {
                   _sosPressed = true;
                 });
-                // Reset button after 5 seconds
                 Future.delayed(const Duration(seconds: 5), () {
                   if (mounted) {
                     setState(() {
@@ -781,8 +815,17 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                   }
                 });
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: Text(tr('send_sos_alert')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: Text(
+                tr('send_sos_alert'),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );
@@ -790,29 +833,3 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     );
   }
 }
-
-class HeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    var path = Path();
-    path.lineTo(0, size.height - 50);
-    var firstControlPoint = Offset(size.width / 4, size.height);
-    var firstEndPoint = Offset(size.width / 2, size.height);
-    path.quadraticBezierTo(firstControlPoint.dx, firstControlPoint.dy,
-        firstEndPoint.dx, firstEndPoint.dy);
-
-    var secondControlPoint =
-        Offset(size.width - (size.width / 4), size.height);
-    var secondEndPoint = Offset(size.width, size.height - 50);
-    path.quadraticBezierTo(secondControlPoint.dx, secondControlPoint.dy,
-        secondEndPoint.dx, secondEndPoint.dy);
-
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
-}
-
