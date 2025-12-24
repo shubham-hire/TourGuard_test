@@ -11,16 +11,21 @@ export class EmergencyContactsService {
     ) { }
 
     async create(userId: string, dto: { name: string; phone: string; relationship?: string; isPrimary?: boolean }) {
+        // Store userId as simple string, don't try to link to User entity
         const contact = this.repo.create({
-            ...dto,
-            user: { id: userId } as any,
+            name: dto.name,
+            phone: dto.phone,
+            relationship: dto.relationship,
+            isPrimary: dto.isPrimary ?? false,
+            userId: userId, // Store as string
+            user: null, // Don't link to User entity
         });
         return this.repo.save(contact);
     }
 
     async findByUser(userId: string) {
         return this.repo.find({
-            where: { user: { id: userId } },
+            where: { userId: userId },
             order: { isPrimary: 'DESC', createdAt: 'ASC' },
         });
     }
@@ -33,7 +38,7 @@ export class EmergencyContactsService {
 
     async delete(id: string, userId: string) {
         const contact = await this.repo.findOne({
-            where: { id, user: { id: userId } },
+            where: { id, userId: userId },
         });
         if (contact) {
             await this.repo.remove(contact);

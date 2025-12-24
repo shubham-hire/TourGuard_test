@@ -6,8 +6,13 @@ export class EmergencyContact {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @ManyToOne(() => User, { onDelete: 'CASCADE' })
-    user: User;
+    // Optional relationship to User - nullable for anonymous/unregistered users
+    @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+    user: User | null;
+
+    // Store userId as string for cases where user doesn't exist in DB
+    @Column({ nullable: true })
+    userId: string;
 
     @Column()
     name: string;
