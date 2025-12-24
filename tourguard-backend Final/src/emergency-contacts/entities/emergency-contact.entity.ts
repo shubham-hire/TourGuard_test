@@ -1,16 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
 
 @Entity('emergency_contacts')
 export class EmergencyContact {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    // Optional relationship to User - nullable for anonymous/unregistered users
-    @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
-    user: User | null;
-
-    // Store userId as string for cases where user doesn't exist in DB
+    // Simple string column for user identification
     @Column({ nullable: true })
     userId: string;
 

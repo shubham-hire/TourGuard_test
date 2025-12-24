@@ -9,44 +9,44 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Tour = void 0;
+exports.EmergencyContact = void 0;
 const typeorm_1 = require("typeorm");
 const user_entity_1 = require("../../users/entities/user.entity");
-let Tour = class Tour {
+let EmergencyContact = class EmergencyContact {
 };
-exports.Tour = Tour;
+exports.EmergencyContact = EmergencyContact;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)('uuid'),
     __metadata("design:type", String)
-], Tour.prototype, "id", void 0);
+], EmergencyContact.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", String)
-], Tour.prototype, "title", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
-    __metadata("design:type", String)
-], Tour.prototype, "description", void 0);
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: 'SET NULL', nullable: true }),
+    __metadata("design:type", user_entity_1.User)
+], EmergencyContact.prototype, "user", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
-], Tour.prototype, "destination", void 0);
+], EmergencyContact.prototype, "userId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'date', nullable: true }),
-    __metadata("design:type", Date)
-], Tour.prototype, "startDate", void 0);
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], EmergencyContact.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'date', nullable: true }),
-    __metadata("design:type", Date)
-], Tour.prototype, "endDate", void 0);
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], EmergencyContact.prototype, "phone", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: true, onDelete: 'SET NULL' }),
-    __metadata("design:type", user_entity_1.User)
-], Tour.prototype, "createdBy", void 0);
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmergencyContact.prototype, "relationship", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: false }),
+    __metadata("design:type", Boolean)
+], EmergencyContact.prototype, "isPrimary", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
-], Tour.prototype, "createdAt", void 0);
-exports.Tour = Tour = __decorate([
-    (0, typeorm_1.Entity)('tours')
-], Tour);
+], EmergencyContact.prototype, "createdAt", void 0);
+exports.EmergencyContact = EmergencyContact = __decorate([
+    (0, typeorm_1.Entity)('emergency_contacts')
+], EmergencyContact);

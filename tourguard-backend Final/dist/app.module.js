@@ -16,6 +16,8 @@ const auth_module_1 = require("./auth/auth.module");
 const tours_module_1 = require("./tours/tours.module");
 const incidents_module_1 = require("./incidents/incidents.module");
 const otp_module_1 = require("./otp/otp.module");
+const emergency_contacts_module_1 = require("./emergency-contacts/emergency-contacts.module");
+const sos_alerts_module_1 = require("./sos-alerts/sos-alerts.module");
 const health_controller_1 = require("./health.controller");
 let AppModule = class AppModule {
 };
@@ -25,12 +27,26 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true, load: [configuration_1.default] }),
             typeorm_1.TypeOrmModule.forRootAsync({
-                useFactory: (config) => ({
-                    type: 'sqlite',
-                    database: 'database.sqlite',
-                    entities: [__dirname + '/**/*.entity{.ts,.js}'],
-                    synchronize: true,
-                }),
+                useFactory: (config) => {
+                    const databaseUrl = process.env.DATABASE_URL;
+                    if (databaseUrl) {
+                        return {
+                            type: 'postgres',
+                            url: databaseUrl,
+                            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+                            synchronize: true,
+                            ssl: { rejectUnauthorized: false },
+                        };
+                    }
+                    else {
+                        return {
+                            type: 'sqlite',
+                            database: 'database.sqlite',
+                            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+                            synchronize: true,
+                        };
+                    }
+                },
                 inject: [config_1.ConfigService],
             }),
             users_module_1.UsersModule,
@@ -38,6 +54,8 @@ exports.AppModule = AppModule = __decorate([
             tours_module_1.ToursModule,
             incidents_module_1.IncidentsModule,
             otp_module_1.OtpModule,
+            emergency_contacts_module_1.EmergencyContactsModule,
+            sos_alerts_module_1.SOSAlertsModule,
         ],
         controllers: [health_controller_1.HealthController],
     })

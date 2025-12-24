@@ -3,8 +3,9 @@ export declare class Tour {
     id: string;
     title: string;
     description: string;
-    location: string;
-    meta: any;
+    destination: string;
+    startDate: Date;
+    endDate: Date;
     createdBy: User;
     createdAt: Date;
 }

@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Incident = exports.IncidentSeverity = void 0;
+exports.Incident = exports.IncidentStatus = exports.IncidentSeverity = void 0;
 const typeorm_1 = require("typeorm");
 const user_entity_1 = require("../../users/entities/user.entity");
 var IncidentSeverity;
@@ -19,6 +19,12 @@ var IncidentSeverity;
     IncidentSeverity["HIGH"] = "HIGH";
     IncidentSeverity["CRITICAL"] = "CRITICAL";
 })(IncidentSeverity || (exports.IncidentSeverity = IncidentSeverity = {}));
+var IncidentStatus;
+(function (IncidentStatus) {
+    IncidentStatus["REPORTED"] = "REPORTED";
+    IncidentStatus["ACKNOWLEDGED"] = "ACKNOWLEDGED";
+    IncidentStatus["RESOLVED"] = "RESOLVED";
+})(IncidentStatus || (exports.IncidentStatus = IncidentStatus = {}));
 let Incident = class Incident {
 };
 exports.Incident = Incident;
@@ -31,21 +37,45 @@ __decorate([
     __metadata("design:type", String)
 ], Incident.prototype, "title", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], Incident.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Incident.prototype, "category", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'text', default: IncidentSeverity.MEDIUM }),
     __metadata("design:type", String)
 ], Incident.prototype, "severity", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'text', default: IncidentStatus.REPORTED }),
+    __metadata("design:type", String)
+], Incident.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 7, nullable: true }),
+    __metadata("design:type", Number)
+], Incident.prototype, "latitude", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 7, nullable: true }),
+    __metadata("design:type", Number)
+], Incident.prototype, "longitude", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Incident.prototype, "address", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], Incident.prototype, "location", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: true }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: true, onDelete: 'SET NULL' }),
     __metadata("design:type", user_entity_1.User)
 ], Incident.prototype, "reportedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
+    __metadata("design:type", Date)
+], Incident.prototype, "resolvedAt", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
