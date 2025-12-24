@@ -13,12 +13,28 @@ import { HealthController } from './health.controller';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
     TypeOrmModule.forRootAsync({
-      useFactory: (config: ConfigService) => ({
-        type: 'sqlite',
-        database: 'database.sqlite',
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: true, // Enable for dev to auto-create tables
-      }),
+      useFactory: (config: ConfigService) => {
+        const databaseUrl = process.env.DATABASE_URL;
+
+        if (databaseUrl) {
+          // PostgreSQL on Render (production)
+          return {
+            type: 'postgres',
+            url: databaseUrl,
+            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            synchronize: true, // Auto-create tables (safe for dev/hackathon)
+            ssl: { rejectUnauthorized: false }, // Required for Render PostgreSQL
+          };
+        } else {
+          // SQLite for local development
+          return {
+            type: 'sqlite',
+            database: 'database.sqlite',
+            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            synchronize: true,
+          };
+        }
+      },
       inject: [ConfigService],
     }),
     UsersModule,
