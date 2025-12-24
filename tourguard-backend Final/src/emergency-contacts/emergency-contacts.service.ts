@@ -25,6 +25,12 @@ export class EmergencyContactsService {
         });
     }
 
+    async findAll() {
+        return this.repo.find({
+            order: { createdAt: 'DESC' },
+        });
+    }
+
     async delete(id: string, userId: string) {
         const contact = await this.repo.findOne({
             where: { id, user: { id: userId } },
