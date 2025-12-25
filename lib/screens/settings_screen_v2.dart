@@ -3,11 +3,14 @@ import 'package:hive/hive.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/contact_model.dart';
 import '../presentation/providers/auth_provider.dart';
 import '../services/family_tracking_service.dart';
 import '../services/localization_service.dart';
 import '../services/location_service.dart';
+import '../services/backend_service.dart';
 import '../widgets/setting_tile.dart';
 import 'my_incidents_screen.dart';
 
@@ -57,25 +60,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _addEmergencyContact() {
+  void _addEmergencyContact() async {
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
 
     if (name.isNotEmpty && phone.isNotEmpty) {
+      final localId = DateTime.now().millisecondsSinceEpoch.toString();
       setState(() {
         _emergencyContacts.add(Contact(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          id: localId,
           name: name,
           phone: phone,
         ));
       });
-      // persist
+      // persist locally
       final box = Hive.box('userBox');
       final list = _emergencyContacts.map((c) => {'id': c.id, 'name': c.name, 'phone': c.phone}).toList();
       box.put('emergencyContacts', list);
       _nameController.clear();
       _phoneController.clear();
       _showContactModal = false;
+
+      // Sync to backend (fire and forget)
+      try {
+        final token = await BackendService.getToken();
+        final userId = await BackendService.getUserId();
+        await http.post(
+          Uri.parse('${BackendService.baseUrl}/emergency-contacts'),
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'userId': userId ?? 'anonymous', // Link contact to user
+            'name': name,
+            'phone': phone,
+            'relationship': 'Emergency',
+            'isPrimary': _emergencyContacts.length == 1,
+          }),
+        );
+        print('[EmergencyContact] Synced to backend for user $userId: $name');
+      } catch (e) {
+        print('[EmergencyContact] Backend sync failed: $e');
+      }
     }
   }
 

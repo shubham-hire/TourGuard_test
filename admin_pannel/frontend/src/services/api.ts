@@ -187,17 +187,22 @@ export const incidentsApi = {
         // Backend returns array directly
         const data = Array.isArray(response.data) ? response.data : (response.data as any)?.data || [];
 
+        console.log('[DEBUG] Raw incidents from backend:', data.length, data);
+
         // Transform to proper Incident format - EXCLUDE SOS alerts
-        return data
+        const filtered = data
             .filter((item: any) => {
                 // Exclude SOS alerts (they are shown in sosApi)
                 const isSos = item.severity === 'CRITICAL' &&
                     (item.title?.includes('SOS') || item.description?.includes('"category":"SOS"'));
+                if (isSos) console.log('[DEBUG] Filtering out SOS:', item.title);
                 return !isSos;
             })
             .map((item: any) => {
                 const loc = parseLocation(item.location);
                 const desc = parseDescription(item.description);
+
+                console.log('[DEBUG] Incident:', item.title, 'location raw:', item.location, 'parsed:', loc);
 
                 return {
                     id: item.id,
@@ -211,12 +216,17 @@ export const incidentsApi = {
                     user: item.user,
                 } as Incident;
             })
-            .filter((item: Incident) =>
-                item.location &&
-                item.location.latitude !== 0 &&
-                item.location.longitude !== 0
-            )
+            .filter((item: Incident) => {
+                const hasValidLocation = item.location &&
+                    item.location.latitude !== 0 &&
+                    item.location.longitude !== 0;
+                if (!hasValidLocation) console.log('[DEBUG] Filtering out due to invalid location:', item.title, item.location);
+                return hasValidLocation;
+            })
             .sort((a: Incident, b: Incident) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        console.log('[DEBUG] Final incidents after filtering:', filtered.length);
+        return filtered;
     },
 
     getIncidentById: async (id: string): Promise<Incident> => {

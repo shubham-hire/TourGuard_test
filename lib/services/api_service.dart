@@ -175,18 +175,46 @@ class ApiService {
     }
   }
 
-  // Send SOS alert to emergency contacts (with shorter timeout for speed)
+  // Send SOS alert - saves to sos_alerts table (not incidents)
   static Future<Map<String, dynamic>> sendSOS({
     required double latitude,
     required double longitude,
     required List<Map<String, dynamic>> emergencyContacts,
     String? userName,
   }) async {
-    return await post('/sos/send', {
+    final token = await BackendService.getToken();
+    final userId = await BackendService.getUserId();
+    
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+
+    final body = {
       'latitude': latitude,
       'longitude': longitude,
-      'emergencyContacts': emergencyContacts,
-      if (userName != null) 'userName': userName,
-    }, timeout: const Duration(seconds: 3)); // Shorter timeout for faster response
+      'message': userName != null 
+          ? 'SOS triggered by $userName at $latitude, $longitude' 
+          : 'SOS triggered at $latitude, $longitude',
+      if (userId != null) 'userId': userId,
+    };
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/sos-alerts'),
+            headers: headers,
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to send SOS: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error: $e');
+    }
   }
 }
