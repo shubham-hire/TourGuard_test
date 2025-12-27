@@ -1,5 +1,5 @@
 import { Controller, Post, Body, HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { DeepseekService } from './deepseek.service';
+import { GeminiChatService } from './gemini-chat.service';
 
 interface ChatRequestDto {
   message: string;
@@ -16,7 +16,7 @@ interface ChatResponseDto {
 export class ChatController {
   private readonly logger = new Logger(ChatController.name);
 
-  constructor(private readonly deepseekService: DeepseekService) {}
+  constructor(private readonly geminiChatService: GeminiChatService) {}
 
   @Post()
   async sendMessage(@Body() body: ChatRequestDto): Promise<ChatResponseDto> {
@@ -29,7 +29,7 @@ export class ChatController {
     this.logger.log(`Received chat message: "${message.substring(0, 50)}..."`);
 
     try {
-      const aiResponse = await this.deepseekService.chat(message, history);
+      const aiResponse = await this.geminiChatService.chat(message);
       
       return {
         success: true,

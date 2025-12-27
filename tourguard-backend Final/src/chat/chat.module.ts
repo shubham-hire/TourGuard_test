@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ChatController } from './chat.controller';
-import { DeepseekService } from './deepseek.service';
+import { GeminiChatService } from './gemini-chat.service';
 
 @Module({
   controllers: [ChatController],
-  providers: [DeepseekService],
-  exports: [DeepseekService],
+  providers: [GeminiChatService],
+  exports: [GeminiChatService],
 })
 export class ChatModule {}
