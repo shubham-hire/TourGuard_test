@@ -84,49 +84,110 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     });
   }
 
+  import '../services/gemini_service.dart';
+
+  // ... (inside class)
+
   void _handleSpeechResult(SpeechRecognitionResult result) {
     try {
       final recognized = result.recognizedWords.trim().toLowerCase();
-      if (recognized.isEmpty) {
-        return;
-      }
+      if (recognized.isEmpty) return;
 
-      // Multilingual distress keywords (English, Hindi, Marathi, regional)
-      const keywords = [
-        // English
-        'help', 'help me', 'please help', 'i need help', 'sos', 'emergency', 'save me', 'danger',
-        // Hindi
-        'bachao', 'bachaao', 'madad', 'madad karo', 'madad chahiye', 'mujhe bachao', 'mujhe madad chahiye',
-        // Marathi  
-        'vaachva', 'vaachava', 'madad kara', 'help kara',
-        // Common phonetic variations
-        'bachav', 'bachaw', 'madath', 'sahayata', 'bacha lo', 'bacha le',
-        // Panic phrases
-        'call police', 'call 100', 'police', 'ambulance', 'fire', 'attack', 'robbery', 'thief',
-      ];
-      final matchedKeyword =
-          keywords.firstWhere((kw) => recognized.contains(kw), orElse: () => '');
       final now = DateTime.now();
       final recentlyTriggered = _lastVoiceTrigger != null &&
           now.difference(_lastVoiceTrigger!) < const Duration(seconds: 4);
+      
+      if (recentlyTriggered) return;
 
-      print('[SOS] Recognized "$recognized" | keyword: $matchedKeyword | confidence: ${result.confidence}');
-
-      if (matchedKeyword.isEmpty || recentlyTriggered) {
-        return;
-      }
+      print('[Voice] Recognized: "$recognized" | confidence: ${result.confidence}');
 
       if (result.hasConfidenceRating && result.confidence < 0.4) {
-        print('[SOS] Ignoring low-confidence match');
+        print('[Voice] Ignoring low-confidence match');
         return;
       }
 
-      _lastVoiceTrigger = now;
-      _handleVoiceTriggeredSOS();
+      // ⚡ FAST PATH: Check local offline commands first (latency sensitive)
+      final localCommand = _checkLocalCommands(recognized);
+      if (localCommand != null) {
+        _lastVoiceTrigger = now;
+        _executeAction(localCommand['action']!, localCommand['value']);
+        return;
+      }
+
+      // 🧠 SMART PATH: Use Gemini AI Agent for complex intent
+      // Running in background to not block UI, but actionable
+      _processWithAI(recognized);
+
     } catch (e) {
-      print('[SOS] Error handling speech result: $e');
+      print('[Voice] Error: $e');
     }
   }
+
+  Map<String, String>? _checkLocalCommands(String text) {
+    // 1. Direct Calls
+    final callCommands = {
+      'call police': '100', 'police ko call': '100', 'police bulao': '100',
+      'call ambulance': '102', 'ambulance bulao': '102',
+      'call fire': '101', 'aag lagi': '101',
+      'call helpline': '112', 'one one two': '112',
+    };
+
+    for (final entry in callCommands.entries) {
+      if (text.contains(entry.key)) return {'action': 'CALL', 'value': entry.value};
+    }
+
+    // 2. SOS Triggers
+    const sosKeywords = ['help me', 'sos', 'bachao', 'madad', 'save me'];
+    if (sosKeywords.any((k) => text.contains(k))) return {'action': 'SOS', 'value': ''};
+
+    return null;
+  }
+
+  Future<void> _processWithAI(String text) async {
+    try {
+      print('[Voice] 🧠 Asking AI Agent...');
+      final decision = await GeminiService.classifyVoiceCommand(text);
+      print('[Voice] 🧠 Agent Decision: $decision');
+
+      if (decision['confidence'] > 0.7) {
+        final action = decision['action'];
+        
+        // Execute AI decision
+        if (action == 'CALL_POLICE') _executeAction('CALL', '100');
+        else if (action == 'CALL_AMBULANCE') _executeAction('CALL', '102');
+        else if (action == 'CALL_FIRE') _executeAction('CALL', '101');
+        else if (action == 'CALL_HELPLINE') _executeAction('CALL', '112');
+        else if (action == 'TRIGGER_SOS') _executeAction('SOS', '');
+      }
+    } catch (e) {
+      print('[Voice] AI processing error: $e');
+    }
+  }
+
+  void _executeAction(String action, String? value) {
+    _lastVoiceTrigger = DateTime.now();
+    
+    if (action == 'CALL') {
+      print('[Action] 📞 Dials $value');
+      _makeEmergencyCall(value!);
+      _showCallFeedback('Emergency Call', value);
+    } else if (action == 'SOS') {
+      print('[Action] 🆘 Triggering SOS');
+      _handleVoiceTriggeredSOS();
+    }
+  }
+
+  void _showCallFeedback(String command, String number) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('📞 Calling $number...'),
+        backgroundColor: AppColors.navyBlue,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
 
   void _handleSpeechError(String message) {
     if (!mounted) return;
