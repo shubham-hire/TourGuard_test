@@ -26,9 +26,13 @@ import 'package:tourguard/services/location_service.dart';
 import 'package:tourguard/services/location_emitter.dart';
 import 'package:tourguard/services/websocket_service.dart';
 import 'package:tourguard/app/router.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables from .env file
+  await dotenv.load(fileName: ".env");
   
   // Initialize services
   await NotificationService.initialize();
