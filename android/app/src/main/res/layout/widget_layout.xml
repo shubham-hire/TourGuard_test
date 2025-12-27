@@ -1,0 +1,58 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:padding="16dp">
+
+    <!-- Branding -->
+    <TextView
+        android:id="@+id/app_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:text="TourGuard"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:alpha="0.9" />
+
+    <!-- Main SOS Text -->
+    <TextView
+        android:id="@+id/sos_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:text="SOS"
+        android:textColor="#FFFFFF"
+        android:textSize="42sp"
+        android:textStyle="bold"
+        android:shadowColor="#80000000"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="4" />
+
+    <!-- Subtitle -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/sos_text"
+        android:layout_centerHorizontal="true"
+        android:text="Tap for Help"
+        android:textColor="#FFEBEE"
+        android:textSize="12sp"
+        android:textStyle="normal"
+        android:layout_marginTop="4dp" />
+
+    <!-- Pulse Icon (Decorative) -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@android:drawable/ic_lock_idle_alarm"
+        android:alpha="0.1"
+        android:scaleType="fitCenter"
+        android:tint="#FFFFFF"
+        android:layout_centerInParent="true" />
+
+</RelativeLayout>

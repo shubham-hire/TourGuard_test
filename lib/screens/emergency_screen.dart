@@ -15,6 +15,8 @@ import '../services/api_service.dart';
 import '../services/api_environment.dart';
 import '../services/backend_service.dart';
 import '../core/constants/app_colors.dart';
+import '../services/gemini_service.dart';
+import '../services/websocket_service.dart';
 
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
@@ -84,9 +86,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     });
   }
 
-  import '../services/gemini_service.dart';
 
-  // ... (inside class)
 
   void _handleSpeechResult(SpeechRecognitionResult result) {
     try {
@@ -168,12 +168,25 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     _lastVoiceTrigger = DateTime.now();
     
     if (action == 'CALL') {
-      print('[Action] 📞 Dials $value');
+      print('[Action] 📞 Direct calling $value');
       _makeEmergencyCall(value!);
       _showCallFeedback('Emergency Call', value);
+      // Also send SOS to server when calling emergency services
+      _sendSOSViaWebSocket('CALL_$value');
     } else if (action == 'SOS') {
-      print('[Action] 🆘 Triggering SOS');
+      print('[Action] 🆘 Triggering SOS via server');
+      _sendSOSViaWebSocket('VOICE_SOS');
       _handleVoiceTriggeredSOS();
+    }
+  }
+
+  /// Send SOS directly to backend via WebSocket (no SMS app needed)
+  void _sendSOSViaWebSocket(String triggerType) {
+    try {
+      print('[SOS] 🚨 Sending emergency to server: $triggerType');
+      WebSocketService().emitEmergency();
+    } catch (e) {
+      print('[SOS] WebSocket error: $e');
     }
   }
 
@@ -424,11 +437,19 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   Future<void> _makeEmergencyCall(String phoneNumber) async {
     final url = 'tel:$phoneNumber';
     try {
-      // Try to launch with tel: scheme
-      await launchUrl(
+      // Use platformDefault for direct dialing (requires CALL_PHONE permission on Android)
+      // This will directly start the call without showing dialer
+      final launched = await launchUrl(
         Uri.parse(url),
-        mode: LaunchMode.externalApplication,
+        mode: LaunchMode.platformDefault,
       );
+      if (!launched) {
+        // Fallback to external app if direct dial fails
+        await launchUrl(
+          Uri.parse(url),
+          mode: LaunchMode.externalApplication,
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

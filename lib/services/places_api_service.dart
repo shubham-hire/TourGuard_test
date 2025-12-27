@@ -97,7 +97,7 @@ class PlacesApiService {
     required String type,
   }) async {
     // Convert radius from meters to the format Overpass expects
-    final radiusMeters = radius > 10000 ? 10000 : radius; // Limit to 10km for Overpass
+    final radiusMeters = radius > 50000 ? 50000 : radius; // Limit to 50km for Overpass
     
     // Build Overpass query based on category
     final overpassQuery = _buildOverpassQuery(

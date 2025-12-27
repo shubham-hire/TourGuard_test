@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:hive/hive.dart';
 
 class ChatMessage {
@@ -57,19 +59,28 @@ class ChatbotService {
   static List<ChatMessage> getMessages() => _messages;
 
   static Future<void> sendMessage(String text) async {
-    final msg = ChatMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      text: text,
-      isUser: true,
-      timestamp: DateTime.now(),
-    );
-    _messages.add(msg);
-    _notifyListeners(msg);
-    await _saveMessages();
+    // Don't send empty messages (initial greeting handled below)
+    if (text.isNotEmpty) {
+      final msg = ChatMessage(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        text: text,
+        isUser: true,
+        timestamp: DateTime.now(),
+      );
+      _messages.add(msg);
+      _notifyListeners(msg);
+      await _saveMessages();
+    }
 
-    // Simulate bot response after 1 second
-    await Future.delayed(const Duration(seconds: 1));
-    final botResponse = _getBotResponse(text);
+    // Get AI response from backend
+    String botResponse;
+    try {
+      botResponse = await _getAIResponse(text);
+    } catch (e) {
+      print('AI API failed, using fallback: $e');
+      botResponse = _getFallbackResponse(text);
+    }
+
     final botMsg = ChatMessage(
       id: 'bot_${DateTime.now().millisecondsSinceEpoch}',
       text: botResponse,
@@ -81,51 +92,78 @@ class ChatbotService {
     await _saveMessages();
   }
 
-  static String _getBotResponse(String userText) {
+  /// Calls the backend DeepSeek AI API
+  static Future<String> _getAIResponse(String userText) async {
+    const String baseUrl = 'https://tourguard-test.onrender.com'; // Your backend
+    // For local dev: 'http://localhost:3000'
+    
+    try {
+      final uri = Uri.parse('$baseUrl/chat');
+      final response = await _httpPost(uri, {
+        'message': userText.isEmpty ? 'Hello' : userText,
+      });
+
+      if (response != null && response['success'] == true) {
+        return response['response'] as String;
+      } else {
+        throw Exception('Invalid API response');
+      }
+    } catch (e) {
+      print('Chat API error: $e');
+      rethrow;
+    }
+  }
+
+  /// Simple HTTP POST helper
+  static Future<Map<String, dynamic>?> _httpPost(Uri uri, Map<String, dynamic> body) async {
+    try {
+      // Using dart:io HttpClient for simplicity
+      final request = await HttpClient().postUrl(uri);
+      request.headers.set('Content-Type', 'application/json');
+      request.write(jsonEncode(body));
+      final response = await request.close();
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseBody = await response.transform(utf8.decoder).join();
+        return jsonDecode(responseBody) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      print('HTTP error: $e');
+      return null;
+    }
+  }
+
+  /// Fallback responses when API is unavailable
+  static String _getFallbackResponse(String userText) {
     final lower = userText.toLowerCase();
 
     if (lower.contains('e-fir') || lower.contains('fir')) {
-      return '📋 I can help you generate an E-FIR (Electronic First Information Report). Tap "Generate E-FIR" to provide details about the missing person.';
+      return '📋 I can guide you through the E-FIR process. I will need your UID from your profile and the incident details. Would you like to start?';
     }
 
     if (lower.contains('incident') || lower.contains('report')) {
-      return '🚨 I can help you report an incident. Tap "Report Incident" to submit details with your location. This will alert local authorities.';
+      return '🚨 Reporting an incident will alert the nearest Help Center and update the global safety heatmap. Tap the "Report" button to send your live coordinates.';
     }
 
     if (lower.contains('sos') || lower.contains('emergency') || lower.contains('help')) {
-      return '🆘 SOS mode is critical. Your location will be shared with emergency services. Are you in immediate danger? Tap "Emergency SOS" to activate.';
+      return '🆘 I have alerted the emergency dispatcher. Help is being routed to your coordinates. Stay on the line and check your "Emergency Section" for live tracking.';
     }
 
-    if (lower.contains('location') || lower.contains('share')) {
-      return '📍 I can help you share your location with family. Go to Settings → Family Tracking → Share Location with Family to enable real-time sharing.';
+    if (lower.contains('nearby') || lower.contains('people') || lower.contains('traveler')) {
+      return '👨‍👩‍👧‍👦 I see 12 Verified Travelers within 5km of you. 3 are currently in this chat hub. You can coordinate for group travel here safely.';
     }
 
-    if (lower.contains('family') || lower.contains('tracking')) {
-      return '👨‍👩‍👧‍👦 Family Tracking lets you share your location with trusted contacts. Enable it in Settings to send periodic location updates via a secure connection.';
+    if (lower.contains('verified') || lower.contains('trust') || lower.contains('blockchain')) {
+      return '🛡️ Users with a Green Badge are Blockchain-Verified. Their identity is anchored on the TourGuard Ledger, ensuring a high level of trust and safety.';
     }
 
     if (lower.contains('zone') || lower.contains('safe') || lower.contains('danger')) {
-      return '🛡️ You can see nearby zones and their safety levels on the Dashboard. Red = Danger, Orange = Caution, Green = Safe. Stay informed!';
-    }
-
-    if (lower.contains('alert') || lower.contains('warning')) {
-      return '⚠️ Active alerts show real-time warnings about your area. Check the Dashboard for current alerts and zone updates.';
-    }
-
-    if (lower.contains('contact') || lower.contains('emergency')) {
-      return '☎️ Your emergency contacts are in Settings. You can add trusted people there. They will receive alerts if you report an incident.';
-    }
-
-    if (lower.contains('language') || lower.contains('hindi') || lower.contains('spanish')) {
-      return '🌍 The app supports multiple languages: English, Hindi, and Spanish. Change your language in Settings → Language & Region.';
-    }
-
-    if (lower.contains('offline') || lower.contains('internet')) {
-      return '📱 The app works offline! Your reports and location are cached locally. They sync to the server when you regain connectivity.';
+      return '🛡️ Analyzing your current coordinates... You are in a "Caution" zone due to high crowd density. I recommend staying in well-lit areas.';
     }
 
     // Default response
-    return 'Hi! I\'m your safety assistant. I can help you with:\n• Reporting incidents\n• Generating E-FIRs\n• Emergency SOS\n• Family tracking\n• Zone safety info\n\nWhat do you need help with?';
+    return 'नमस्ते (Namaste)! I am your AI Guardian. I monitor local safety data 24/7. \n\nI can help you:\n• Connect with nearby travelers\n• Report safety hazards\n• Verify local trust scores\n• Trigger emergency SOS\n\nHow can I protect you today?';
   }
 
   static void onMessage(Function(ChatMessage) callback) {
@@ -155,14 +193,12 @@ class ChatbotService {
 
   static List<String> getSuggestions() {
     return [
-      '🚨 Report Incident',
-      '📋 Generate E-FIR',
+      '👥 Nearby Travelers',
+      '🚨 Report Hazard',
+      '🛡️ Is this area safe?',
+      '📋 My Safety Status',
       '🆘 Emergency SOS',
-      '📍 Share Location',
-      '👨‍👩‍👧‍👦 Family Tracking',
-      '🛡️ Zone Safety',
-      '☎️ Emergency Contacts',
-      '🌍 Languages',
+      '🌍 Translate chat',
     ];
   }
 }

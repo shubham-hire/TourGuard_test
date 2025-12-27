@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive/hive.dart';
+import 'package:go_router/go_router.dart';
 import '../services/localization_service.dart';
 import '../presentation/providers/auth_provider.dart';
 import '../core/constants/app_colors.dart';
-
-import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -27,16 +26,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<String?> _getBlockchainHashId() async {
     try {
-      // Get from AuthProvider's user (fetched from Firestore)
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
       
-      // Check if user has blockchain hash in their profile
       if (user != null && user.blockchainHashId != null && user.blockchainHashId!.isNotEmpty) {
         return user.blockchainHashId;
       }
       
-      // Try to get from local Hive storage
       if (Hive.isBoxOpen('userBox')) {
         final box = Hive.box('userBox');
         final userData = box.get('currentUser');
@@ -45,7 +41,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
       
-      // Try blockchain box
       if (Hive.isBoxOpen('blockchainBox')) {
         final blockchainBox = Hive.box('blockchainBox');
         final hashes = blockchainBox.get('localHashes') as List?;
@@ -67,380 +62,567 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
 
+    if (user == null) {
+      return Scaffold(
+        backgroundColor: AppColors.surfaceWhite,
+        body: Center(
+          child: Text('No user data found. Please login.',
+              style: TextStyle(color: Colors.grey[700], fontSize: 16)),
+        ),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: Text(tr('profile'),
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: const Color(0xFFF5F7FA),
-        foregroundColor: Colors.blue[900],
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.settings, color: AppColors.navyBlue),
-            onPressed: () {
-              context.push('/settings');
-            },
-          ),
-        ],
-      ),
-      body: user == null
-          ? Center(
-              child: Text('No user data found. Please login.',
-                  style: TextStyle(color: Colors.grey[700], fontSize: 16)))
-          : SingleChildScrollView(
+      backgroundColor: const Color(0xFFF3F4F6), // Soft grey background for contrast
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Custom Navy Curved Header
+            _buildHeader(user),
+
+            // Content Body
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: [
-                  const SizedBox(height: 24),
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F7FA),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                      border: Border.all(color: Colors.blue[50]!, width: 1.5),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.blue[800],
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.blue.withOpacity(0.15),
-                                blurRadius: 8,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: CircleAvatar(
-                            radius: 32,
-                            backgroundColor: Colors.blue[800],
-                            child: Text(
-                              user.name.isNotEmpty
-                                  ? user.name[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 32,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user.name,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                  letterSpacing: 0.5,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue[50],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'ID: ${user.id}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.black,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Blockchain Identity Section
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.indigo[700]!, Colors.purple[600]!],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.indigo.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.security, color: Colors.white, size: 24),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Blockchain Identity',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.green[400],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.verified, color: Colors.white, size: 14),
-                                  const SizedBox(width: 4),
-                                  const Text(
-                                    'Verified',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Hash ID (On Ethereum)',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              FutureBuilder<String?>(
-                                future: _getBlockchainHashId(),
-                                builder: (context, snapshot) {
-                                  final hashId = snapshot.data;
-                                  
-                                  if (hashId == null || hashId == 'Not registered on blockchain yet' || hashId.startsWith('Error')) {
-                                    return Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          hashId ?? 'Not registered on blockchain yet',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 11,
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        InkWell(
-                                          onTap: () async {
-                                            final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Syncing with blockchain...')),
-                                            );
-                                            
-                                            final success = await authProvider.syncBlockchainIdentity();
-                                            
-                                            if (context.mounted) {
-                                              if (success) {
-                                                setState(() {}); // Refresh UI
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text('Identity verified on blockchain!'),
-                                                    backgroundColor: Colors.green,
-                                                  ),
-                                                );
-                                              } else {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text('Sync failed. Check connection.'),
-                                                    backgroundColor: Colors.red,
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white.withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(20),
-                                              border: Border.all(color: Colors.white30),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(Icons.sync, color: Colors.white, size: 14),
-                                                const SizedBox(width: 4),
-                                                const Text(
-                                                  'Sync Identity',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  }
-                                  
-                                  return SelectableText(
-                                    hashId,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontFamily: 'monospace',
-                                      letterSpacing: 0.5,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(Icons.link, color: Colors.white70, size: 14),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'Ethereum Permissioned Blockchain',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildInfoCard(tr('email'), user.email),
-                        const SizedBox(height: 12),
-                        _buildInfoCard(tr('phone'), user.phone),
-                        const SizedBox(height: 12),
-                        _buildInfoCard(
-                            tr('country'), user.nationality ?? 'India'),
-                        const SizedBox(height: 12),
-                        _buildInfoCard('User Type',
-                            (user.userType == 'indian' || user.userType == 'domestic'
-                                    ? 'DOMESTIC'
-                                    : (user.userType ?? 'N/A'))
-                                .toUpperCase()),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.red[50],
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.red[200]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              tr('emergency_contacts'),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add_circle_outline,
-                                  color: Colors.red),
-                              onPressed: () => _showAddContactDialog(context),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        if (authProvider.emergencyContacts.isEmpty)
-                          Center(
-                            child: ElevatedButton.icon(
-                              onPressed: () => _showAddContactDialog(context),
-                              icon: const Icon(Icons.add),
-                              label: const Text('Add Family Member'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          )
-                        else
-                          ...authProvider.emergencyContacts.map(
-                            (contact) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8.0),
-                              child: _buildContactItem(contact['name'] ?? '',
-                                  contact['phone'] ?? ''),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+                   const SizedBox(height: 20),
+                   
+                   // Blockchain Identity Card (Premium Look)
+                   _buildBlockchainCard(),
+
+                   const SizedBox(height: 20),
+
+                   // Personal Info Card
+                   _buildPersonalInfoCard(user),
+
+                   const SizedBox(height: 20),
+
+                   // Emergency Contacts
+                   _buildEmergencyContactsCard(authProvider),
+
+                   const SizedBox(height: 120), // Bottom padding increased for navbar
                 ],
               ),
             ),
+          ],
+        ),
+      ),
     );
+  }
+
+  // ... imports remain the same
+
+  // Helper for Tiranga Gradient
+  LinearGradient get _tirangaGradient => const LinearGradient(
+    colors: [
+      Color(0xFFFF9933), // Saffron
+      Colors.white,
+      Color(0xFF138808), // India Green
+    ],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
+  Widget _buildHeader(user) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: AppColors.navyBlue,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 60, bottom: 30, left: 24, right: 24),
+            child: Column(
+              children: [
+                // Top Row: Title & Settings
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      tr('profile'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 22),
+                        onPressed: () => context.push('/settings'),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 24),
+
+                // User Profile Info
+                Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        // Tiranga border for avatar
+                        gradient: const LinearGradient(
+                           colors: [Color(0xFFFF9933), Colors.white, Color(0xFF138808)],
+                           begin: Alignment.topLeft,
+                           end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: 40,
+                        backgroundColor: Colors.white,
+                        child: Text(
+                          user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 32,
+                            color: AppColors.navyBlue,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      user.name,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                       mainAxisAlignment: MainAxisAlignment.center,
+                       children: [
+                         Icon(Icons.verified, color: AppColors.saffron, size: 16),
+                         const SizedBox(width: 4),
+                         Text(
+                          'Verified Traveler',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.8),
+                            fontWeight: FontWeight.w500,
+                          ),
+                         ),
+                       ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Bottom Tiranga Strip
+          // ClipRRect(
+          //   borderRadius: const BorderRadius.only(
+          //      bottomLeft: Radius.circular(32),
+          //      bottomRight: Radius.circular(32),
+          //   ),
+          //   child: Container(
+          //     height: 6,
+          //     width: double.infinity,
+          //     decoration: BoxDecoration(
+          //       gradient: _tirangaGradient,
+          //     ),
+          //   ),
+          // ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBlockchainCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.indigo.shade900, const Color(0xFF4B0082)], // Deep purple/indigo
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.indigo.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Background decoration
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Icon(
+              Icons.security,
+              size: 150,
+              color: Colors.white.withOpacity(0.05),
+            ),
+          ),
+          
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.link_rounded, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Blockchain Identity',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  ),
+                  child: FutureBuilder<String?>(
+                    future: _getBlockchainHashId(),
+                    builder: (context, snapshot) {
+                      final hashId = snapshot.data;
+                      
+                      if (hashId == null || hashId == 'Not registered on blockchain yet' || hashId.startsWith('Error')) {
+                        return InkWell(
+                          onTap: () => _syncIdentity(),
+                          child: Row(
+                            children: [
+                              const Text(
+                                'Tap to Sync Identity',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontStyle: FontStyle.italic,
+                                  fontSize: 13, 
+                                ),
+                              ),
+                              const Spacer(),
+                              Icon(Icons.refresh, color: AppColors.saffron, size: 18),
+                            ],
+                          ),
+                        );
+                      }
+                      
+                      return Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                            Text(
+                              'HASH ID',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              hashId,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontFamily: 'monospace',
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                         ],
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                     Text(
+                       'Secured by Ethereum',
+                       style: TextStyle(
+                         color: Colors.white.withOpacity(0.6),
+                         fontSize: 11,
+                       ),
+                     ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPersonalInfoCard(user) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: _tirangaGradient,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(3), // Width of the tricolor border
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.person_outline_rounded, color: AppColors.navyBlue, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  'Personal Details',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDark,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            _buildDetailRow(tr('email'), user.email, Icons.email_outlined),
+            const Divider(height: 32, color: Color(0xFFEEEEEE)),
+            _buildDetailRow(tr('phone'), user.phone, Icons.phone_outlined),
+            const Divider(height: 32, color: Color(0xFFEEEEEE)),
+            _buildDetailRow(tr('country'), user.nationality ?? 'India', Icons.public),
+            const Divider(height: 32, color: Color(0xFFEEEEEE)),
+             _buildDetailRow('User ID', user.id, Icons.badge_outlined, isMonospace: true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, IconData icon, {bool isMonospace = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 20, color: AppColors.navyBlue),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: AppColors.textDark,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: isMonospace ? 'monospace' : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmergencyContactsCard(AuthProvider authProvider) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: _tirangaGradient,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+           BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(3),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.sos_rounded, color: Colors.red, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      tr('emergency_contacts'),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  onPressed: () => _showAddContactDialog(context),
+                  icon: const Icon(Icons.add_circle, color: AppColors.saffron, size: 28),
+                  tooltip: 'Add Contact',
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (authProvider.emergencyContacts.isEmpty)
+               Container(
+                 padding: const EdgeInsets.symmetric(vertical: 20),
+                 alignment: Alignment.center,
+                 child: Column(
+                   children: [
+                     Icon(Icons.contact_phone_outlined, size: 40, color: Colors.grey[300]),
+                     const SizedBox(height: 8),
+                     Text(
+                       'No contacts added yet',
+                       style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                     ),
+                   ],
+                 ),
+               )
+            else
+              ...authProvider.emergencyContacts.map(
+                (contact) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              contact['name'] ?? 'Unknown',
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textDark),
+                            ),
+                            Text(
+                              contact['phone'] ?? '',
+                              style: const TextStyle(color: AppColors.textLight, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                        const Icon(Icons.phone_in_talk, color: Colors.green, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _syncIdentity() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Syncing with blockchain...')),
+    );
+    
+    final success = await authProvider.syncBlockchainIdentity();
+    
+    if (context.mounted) {
+      if (success) {
+        setState(() {}); // Refresh UI
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Identity verified on blockchain!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sync failed. Check connection.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showAddContactDialog(BuildContext context) {
@@ -450,18 +632,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Emergency Contact'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Add Safe Contact'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration:
-                  const InputDecoration(labelText: 'Name (e.g., Father)'),
+              decoration: InputDecoration(
+                 labelText: 'Name (e.g. Mom)',
+                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: phoneController,
-              decoration: const InputDecoration(labelText: 'Phone Number'),
+              decoration: InputDecoration(
+                 labelText: 'Phone Number',
+                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
               keyboardType: TextInputType.phone,
             ),
           ],
@@ -469,49 +658,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () {
-              if (nameController.text.isNotEmpty &&
-                  phoneController.text.isNotEmpty) {
+              if (nameController.text.isNotEmpty && phoneController.text.isNotEmpty) {
                 Provider.of<AuthProvider>(context, listen: false)
-                    .addEmergencyContact(
-                        nameController.text, phoneController.text);
+                    .addEmergencyContact(nameController.text, phoneController.text);
                 Navigator.pop(context);
               }
             },
-            child: const Text('Add'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.navyBlue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Add Contact'),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildInfoCard(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(color: Colors.grey[600])),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContactItem(String name, String phone) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(name),
-        Text(phone, style: const TextStyle(fontWeight: FontWeight.bold)),
-      ],
     );
   }
 }

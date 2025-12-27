@@ -27,6 +27,7 @@ import 'package:tourguard/services/location_emitter.dart';
 import 'package:tourguard/services/websocket_service.dart';
 import 'package:tourguard/app/router.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:home_widget/home_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,8 +57,37 @@ void main() async {
   );
 }
 
-class TouristSafetyHub extends StatelessWidget {
+
+
+class TouristSafetyHub extends StatefulWidget {
   const TouristSafetyHub({super.key});
+
+  @override
+  State<TouristSafetyHub> createState() => _TouristSafetyHubState();
+}
+
+class _TouristSafetyHubState extends State<TouristSafetyHub> {
+  @override
+  void initState() {
+    super.initState();
+    _checkForWidgetLaunch();
+  }
+
+  void _checkForWidgetLaunch() async {
+    try {
+      final uri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+      if (uri != null && uri.toString() == 'tourguard://sos_trigger') {
+        debugPrint('🚨 Launched from SOS Widget!');
+        // Small delay to ensure router is mounted
+        Future.delayed(const Duration(milliseconds: 500), () {
+          router.go('/emergency');
+          // Optional: We could pass extra data to auto-trigger SOS
+        });
+      }
+    } catch (e) {
+      debugPrint('Widget launch check failed: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

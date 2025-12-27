@@ -9,6 +9,7 @@ import { IncidentsModule } from './incidents/incidents.module';
 import { OtpModule } from './otp/otp.module';
 import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts.module';
 import { SOSAlertsModule } from './sos-alerts/sos-alerts.module';
+import { ChatModule } from './chat/chat.module';
 import { HealthController } from './health.controller';
 import { SafetyGateway } from './gateways/safety.gateway';
 
@@ -47,6 +48,7 @@ import { SafetyGateway } from './gateways/safety.gateway';
     OtpModule,
     EmergencyContactsModule,
     SOSAlertsModule,
+    ChatModule,
   ],
   controllers: [HealthController],
   providers: [SafetyGateway],

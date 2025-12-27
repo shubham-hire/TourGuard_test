@@ -791,42 +791,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
             // Chatbot Button
-          //   Positioned(
-          //     bottom: 110, // Adjusted for floating nav bar
-          //     right: 16,
-          //     child: FloatingActionButton(
-          //       heroTag: 'chatbot',
-          //       backgroundColor: AppColors.navyBlue,
-          //       onPressed: () {
-          //         setState(() {
-          //           chatbotOpen = !chatbotOpen;
-          //         });
-          //       },
-          //       child: Stack(
-          //         clipBehavior: Clip.none,
-          //         children: [
-          //           const Icon(Icons.smart_toy_outlined, color: Colors.white),
-          //           Positioned(
-          //             top: -12,
-          //             right: -12,
-          //             child: Container(
-          //               padding: const EdgeInsets.all(4),
-          //               decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-          //               child: const Text('1', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-          //             ),
-          //           ),
-          //         ],
-          //       ),
-          //     ),
-          //   ),
-          //   if (chatbotOpen)
-          //     ChatbotWidget(
-          //       onClose: () {
-          //         setState(() {
-          //           chatbotOpen = false;
-          //         });
-          //       },
-          //     ),
+            // Chatbot Button
+            Positioned(
+              bottom: 60, // Adjusted for floating nav bar
+              right: 16,
+              child: FloatingActionButton(
+                heroTag: 'chatbot',
+                backgroundColor: AppColors.navyBlue,
+                onPressed: () {
+                  setState(() {
+                    chatbotOpen = !chatbotOpen;
+                  });
+                },
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.support_agent_rounded, color: Colors.white),
+                    Positioned(
+                      top: -12,
+                      right: -12,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                        child: const Text('3', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (chatbotOpen)
+              ChatbotWidget(
+                onClose: () {
+                  setState(() {
+                    chatbotOpen = false;
+                  });
+                },
+              ),
           ],
         ),
       ),
