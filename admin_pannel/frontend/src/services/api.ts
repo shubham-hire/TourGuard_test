@@ -96,59 +96,76 @@ const parseDescription = (desc: any): { message?: string; status?: string } => {
 };
 
 export const sosApi = {
-    // SOS events are ONLY incidents with CRITICAL severity AND 'SOS' in title
+    // SOS events are fetched from the dedicated /api/sos-alerts endpoint
     listEvents: async (filters?: { status?: string; since?: string }): Promise<SosEvent[]> => {
         const params = new URLSearchParams();
-        if (filters?.status) params.append('status', filters.status);
+        if (filters?.status) params.append('status', filters.status.toUpperCase()); // Backend uses uppercase
         if (filters?.since) params.append('since', filters.since);
 
         const response = await apiClient.get<any>(
-            `/api/incidents?${params.toString()}`
+            `/api/sos-alerts?${params.toString()}`
         );
-        // Backend returns array directly
+        // Backend returns array directly from sos-alerts endpoint
         const data = Array.isArray(response.data) ? response.data : response.data?.data || [];
 
-        // Transform incidents to SosEvent format - ONLY SOS alerts
-        return data
-            .filter((item: any) =>
-                // Only include actual SOS alerts (CRITICAL severity with SOS in title)
-                item.severity === 'CRITICAL' &&
-                (item.title?.includes('SOS') || item.description?.includes('"category":"SOS"'))
-            )
-            .map((item: any) => {
-                const loc = parseLocation(item.location);
-                const desc = parseDescription(item.description);
-                if (!loc) return null;
+        console.log('[DEBUG] Raw SOS alerts from backend:', data.length, data);
 
-                // Extract user name from message like "SOS triggered by yogesh at..."
-                const message = desc.message || item.title || '';
-                const nameMatch = message.match(/SOS triggered by (\w+)/i);
-                const userName = nameMatch ? nameMatch[1] : 'Unknown';
+        // Transform SOS alerts to SosEvent format
+        return data
+            .map((item: any) => {
+                // Backend returns latitude/longitude directly, and status in uppercase
+                const latitude = Number(item.latitude);
+                const longitude = Number(item.longitude);
+
+                // Skip invalid coordinates
+                if (isNaN(latitude) || isNaN(longitude)) {
+                    console.log('[DEBUG] Skipping SOS with invalid location:', item);
+                    return null;
+                }
+
+                // Convert backend status (PENDING/ACKNOWLEDGED/RESOLVED) to lowercase for frontend
+                const statusMap: { [key: string]: string } = {
+                    'PENDING': 'pending',
+                    'ACKNOWLEDGED': 'acknowledged',
+                    'RESOLVED': 'resolved',
+                };
+                const status = statusMap[item.status] || 'pending';
 
                 return {
                     id: item.id,
-                    userId: item.userId || '',
-                    latitude: loc.latitude,
-                    longitude: loc.longitude,
-                    message: message,
-                    status: desc.status === 'resolved' ? 'resolved' :
-                        desc.status === 'acknowledged' ? 'acknowledged' : 'pending',
-                    createdAt: item.createdAt,
-                    user: item.user || { name: userName, phone: '', email: '' },
+                    userId: item.user?.id || '',
+                    latitude: latitude,
+                    longitude: longitude,
+                    message: item.message || 'SOS Widget Triggered',
+                    status: status,
+                    createdAt: item.triggeredAt || item.createdAt,
+                    user: item.user || { name: 'Unknown', phone: '', email: '' },
                 } as SosEvent;
             })
-            .filter((item: SosEvent | null): item is SosEvent =>
-                item !== null &&
-                !isNaN(item.latitude) &&
-                !isNaN(item.longitude)
-            )
+            .filter((item: SosEvent | null): item is SosEvent => item !== null)
             .sort((a: SosEvent, b: SosEvent) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     },
 
     getEventById: async (id: string): Promise<SosEvent> => {
-        const response = await apiClient.get<SosEvent | ApiResponse<SosEvent>>(`/api/incidents/${id}`);
-        // Handle both wrapped and unwrapped responses
-        return 'data' in response.data && response.data.data ? response.data.data : response.data as SosEvent;
+        const response = await apiClient.get<any>(`/api/sos-alerts/${id}`);
+        const item = response.data;
+        
+        const statusMap: { [key: string]: string } = {
+            'PENDING': 'pending',
+            'ACKNOWLEDGED': 'acknowledged',
+            'RESOLVED': 'resolved',
+        };
+
+        return {
+            id: item.id,
+            userId: item.user?.id || '',
+            latitude: Number(item.latitude),
+            longitude: Number(item.longitude),
+            message: item.message || 'SOS Alert',
+            status: statusMap[item.status] || 'pending',
+            createdAt: item.triggeredAt || item.createdAt,
+            user: item.user || { name: 'Unknown', phone: '', email: '' },
+        } as SosEvent;
     },
 
     createEvent: async (event: {
@@ -158,18 +175,54 @@ export const sosApi = {
         accuracy?: number;
         message?: string;
     }): Promise<SosEvent> => {
-        const response = await apiClient.post<SosEvent>('/api/incidents', {
-            title: 'SOS Alert',
-            description: JSON.stringify({ originalMessage: event.message, category: 'SOS', status: 'reported' }),
-            severity: 'CRITICAL',
-            location: JSON.stringify({ latitude: event.latitude, longitude: event.longitude, userId: event.userId }),
+        const response = await apiClient.post<any>('/api/sos-alerts', {
+            userId: event.userId,
+            latitude: event.latitude,
+            longitude: event.longitude,
+            message: event.message || 'SOS Alert from Admin Panel',
         });
-        return response.data;
+        
+        const item = response.data;
+        const statusMap: { [key: string]: string } = {
+            'PENDING': 'pending',
+            'ACKNOWLEDGED': 'acknowledged',
+            'RESOLVED': 'resolved',
+        };
+
+        return {
+            id: item.id,
+            userId: item.user?.id || event.userId,
+            latitude: Number(item.latitude),
+            longitude: Number(item.longitude),
+            message: item.message,
+            status: statusMap[item.status] || 'pending',
+            createdAt: item.triggeredAt || item.createdAt,
+            user: item.user,
+        } as SosEvent;
     },
 
     updateStatus: async (id: string, status: 'acknowledged' | 'resolved'): Promise<SosEvent> => {
-        const response = await apiClient.patch<SosEvent | ApiResponse<SosEvent>>(`/api/incidents/${id}`, { status });
-        return 'data' in response.data && response.data.data ? response.data.data : response.data as SosEvent;
+        // Backend expects uppercase status
+        const backendStatus = status.toUpperCase();
+        const response = await apiClient.patch<any>(`/api/sos-alerts/${id}/status`, { status: backendStatus });
+        
+        const item = response.data;
+        const statusMap: { [key: string]: string } = {
+            'PENDING': 'pending',
+            'ACKNOWLEDGED': 'acknowledged',
+            'RESOLVED': 'resolved',
+        };
+
+        return {
+            id: item.id,
+            userId: item.user?.id || '',
+            latitude: Number(item.latitude),
+            longitude: Number(item.longitude),
+            message: item.message,
+            status: statusMap[item.status] || status,
+            createdAt: item.triggeredAt || item.createdAt,
+            user: item.user,
+        } as SosEvent;
     },
 };
 
@@ -250,4 +303,3 @@ export const incidentsApi = {
 };
 
 export default apiClient;
-

@@ -25,6 +25,7 @@ import '../utils/constants.dart';
 import '../utils/geofence_helper.dart';
 import '../services/weather_service.dart';
 import '../widgets/chatbot_widget.dart';
+import '../services/chatbot_service.dart';
 import 'package:provider/provider.dart' as provider_pkg;
 import '../presentation/providers/auth_provider.dart';
 import '../services/backend_service.dart';
@@ -48,6 +49,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   // Track per-zone inside/outside state to send enter/exit notifications
   final Map<String, bool> _zoneStates = {};
   bool chatbotOpen = false;
+  int _unreadChatMessages = 0; // Dynamic count for chatbot badge
   Position? _currentPosition;
   final Set<Marker> _markers = {};
   final Set<Circle> _circles = {};
@@ -163,6 +165,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     _initLocationAndData();
     _startGeofenceMonitor();
     _civicScrollController = ScrollController();
+    
+    // Initialize chatbot and listen for new messages
+    ChatbotService.initialize().then((_) {
+      ChatbotService.onMessage((message) {
+        if (!message.isUser && mounted && !chatbotOpen) {
+          setState(() {
+            _unreadChatMessages = ChatbotService.unreadCount;
+          });
+        }
+      });
+    });
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_civicTips.isEmpty) return;
       _civicAutoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
@@ -785,21 +799,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 onPressed: () {
                   setState(() {
                     chatbotOpen = !chatbotOpen;
+                    if (chatbotOpen) {
+                      _unreadChatMessages = 0; // Clear unread when opened
+                    }
                   });
                 },
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
                     const Icon(Icons.support_agent_rounded, color: Colors.white),
-                    Positioned(
-                      top: -12,
-                      right: -12,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                        child: const Text('3', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    if (_unreadChatMessages > 0 && !chatbotOpen)
+                      Positioned(
+                        top: -12,
+                        right: -12,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                          child: Text(
+                            _unreadChatMessages > 9 ? '9+' : '$_unreadChatMessages',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

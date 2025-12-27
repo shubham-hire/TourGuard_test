@@ -28,9 +28,22 @@ import 'package:tourguard/services/websocket_service.dart';
 import 'package:tourguard/app/router.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:home_widget/home_widget.dart';
+import 'services/background_sos_service.dart';
+
+@pragma('vm:entry-point')
+void backgroundCallback(Uri? data) async {
+  print('🛑 BACKGROUND CALLBACK HIT! Data: $data');
+  if (data?.toString() == 'tourguard://sos_background_trigger') {
+     print('🛑 URI MATCHED! Triggering Service...');
+     await BackgroundSosService.trigger();
+  } else {
+     print('🛑 URI MISMATCH: ${data?.toString()}');
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  HomeWidget.registerBackgroundCallback(backgroundCallback);
   
   // Load environment variables from .env file
   await dotenv.load(fileName: ".env");
@@ -80,7 +93,7 @@ class _TouristSafetyHubState extends State<TouristSafetyHub> {
         debugPrint('🚨 Launched from SOS Widget!');
         // Small delay to ensure router is mounted
         Future.delayed(const Duration(milliseconds: 500), () {
-          router.go('/emergency');
+          router.go('/emergency?autoTrigger=true');
           // Optional: We could pass extra data to auto-trigger SOS
         });
       }

@@ -19,7 +19,8 @@ import '../services/gemini_service.dart';
 import '../services/websocket_service.dart';
 
 class EmergencyScreen extends StatefulWidget {
-  const EmergencyScreen({super.key});
+  final bool autoTrigger;
+  const EmergencyScreen({super.key, this.autoTrigger = false});
 
   @override
   State<EmergencyScreen> createState() => _EmergencyScreenState();
@@ -41,6 +42,40 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     super.initState();
     _speechToText = stt.SpeechToText();
     _initVoiceRecognition();
+    
+    if (widget.autoTrigger) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Auto-start SOS logic with countdown
+        if (mounted) {
+          _handleAutoSOS();
+        }
+      });
+    }
+  }
+
+  void _handleAutoSOS() {
+    bool cancelled = false;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('🚨 Widget Triggered! Sending SOS in 5s...'),
+        duration: const Duration(seconds: 5),
+        backgroundColor: Colors.red,
+        action: SnackBarAction(
+          label: 'CANCEL',
+          textColor: Colors.white,
+          onPressed: () {
+            cancelled = true;
+            ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('SOS Cancelled'), backgroundColor: Colors.green),
+            );
+          },
+        ),
+      ),
+    ).closed.then((_) {
+      if (!cancelled && mounted) {
+        _handleVoiceTriggeredSOS();
+      }
+    });
   }
 
   @override

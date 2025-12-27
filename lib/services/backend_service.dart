@@ -203,23 +203,23 @@ class BackendService {
       }
 
       final response = await http.post(
-        Uri.parse('$baseUrl/user/alert'),
+        Uri.parse('$baseUrl/sos-alerts'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'alertType': alertType,
-          'lat': lat,
-          'lng': lng,
-          'message': message ?? '',
+          'latitude': lat,
+          'longitude': lng,
+          'message': message ?? 'SOS Alert triggered from app',
         }),
       );
 
       final data = jsonDecode(response.body);
 
-      if (data['success'] == true && data['data'] != null) {
-        return data['data']['alert'];
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Backend returns the alert object directly
+        return data as Map<String, dynamic>;
       } else {
         throw Exception(data['message'] ?? 'Failed to create alert');
       }

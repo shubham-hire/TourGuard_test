@@ -8,6 +8,8 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.net.Uri
 
+import es.antonborri.home_widget.HomeWidgetBackgroundIntent
+
 /**
  * Implementation of App Widget functionality.
  */
@@ -32,19 +34,10 @@ internal fun updateAppWidget(
     // Construct the RemoteViews object
     val views = RemoteViews(context.packageName, R.layout.widget_layout)
 
-    // Create an Intent to launch MainActivity
-    // We use a unique data URI so Flutter can detect this specific launch
-    val intent = Intent(context, MainActivity::class.java).apply {
-        action = Intent.ACTION_VIEW
-        data = Uri.parse("tourguard://sos_trigger")
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-    }
-
-    val pendingIntent = PendingIntent.getActivity(
+    // Create an Intent to trigger background execution using the plugin helper
+    val pendingIntent = HomeWidgetBackgroundIntent.getBroadcast(
         context,
-        0,
-        intent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        Uri.parse("tourguard://sos_background_trigger")
     )
 
     // Widgets allow click listeners on Views

@@ -11,7 +11,7 @@ import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts
 import { SOSAlertsModule } from './sos-alerts/sos-alerts.module';
 import { ChatModule } from './chat/chat.module';
 import { HealthController } from './health.controller';
-import { SafetyGateway } from './gateways/safety.gateway';
+import { GatewaysModule } from './gateways/gateways.module';
 
 @Module({
   imports: [
@@ -49,9 +49,10 @@ import { SafetyGateway } from './gateways/safety.gateway';
     EmergencyContactsModule,
     SOSAlertsModule,
     ChatModule,
+    GatewaysModule,
   ],
   controllers: [HealthController],
-  providers: [SafetyGateway],
+  providers: [],
 })
 export class AppModule { }
 

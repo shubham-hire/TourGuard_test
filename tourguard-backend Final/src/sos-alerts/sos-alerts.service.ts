@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SOSAlert, SOSStatus } from './entities/sos-alert.entity';
+import { SafetyGateway } from '../gateways/safety.gateway';
 
 @Injectable()
 export class SOSAlertsService {
     constructor(
         @InjectRepository(SOSAlert)
         private repo: Repository<SOSAlert>,
+        private gateway: SafetyGateway,
     ) { }
 
     async create(userId: string | null, dto: { latitude: number; longitude: number; message?: string }) {
@@ -16,7 +18,18 @@ export class SOSAlertsService {
             user: userId ? ({ id: userId } as any) : null,
             status: SOSStatus.PENDING,
         });
-        return this.repo.save(alert);
+        const saved = await this.repo.save(alert);
+
+        // Broadcast to all connected admin clients via WebSocket
+        this.gateway.server.emit('admin:alert', {
+            source: userId || 'widget',
+            type: 'SOS',
+            timestamp: new Date().toISOString(),
+            alertId: saved.id,
+        });
+
+        console.log('🚨 SOS Alert created and broadcasted:', saved.id);
+        return saved;
     }
 
     async findAll() {

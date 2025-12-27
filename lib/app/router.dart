@@ -183,9 +183,12 @@ final router = GoRouter(
         ),
         GoRoute(
           path: '/emergency',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: EmergencyScreen(),
-          ),
+          pageBuilder: (context, state) {
+             final autoTrigger = state.uri.queryParameters['autoTrigger'] == 'true';
+             return NoTransitionPage(
+               child: EmergencyScreen(autoTrigger: autoTrigger),
+             );
+          },
         ),
         GoRoute(
           path: '/profile',

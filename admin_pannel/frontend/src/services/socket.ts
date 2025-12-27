@@ -5,8 +5,8 @@
 import { io, Socket } from 'socket.io-client';
 import { SosEvent } from '../types';
 
-const SOCKET_URL = 'http://10.191.242.40:5001';
-const SOCKET_NAMESPACE = '/admin';
+// Use same base URL as API (Render backend)
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'https://tourguard-test.onrender.com';
 
 let socket: Socket | null = null;
 
@@ -15,23 +15,22 @@ const getAuthToken = () => localStorage.getItem('token');
 export const initializeSocket = (): Socket | null => {
     const token = getAuthToken();
 
-    if (!token) {
-        console.warn('Socket initialization skipped: missing auth token');
-        return null;
+    // Don't require token - socket can still receive broadcasts
+    if (socket?.connected) {
+        return socket;
     }
 
     if (!socket) {
-        socket = io(`${SOCKET_URL}${SOCKET_NAMESPACE}`, {
-            transports: ['websocket'],
+        socket = io(SOCKET_URL, {
+            transports: ['websocket', 'polling'], // Allow fallback to polling
             reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            auth: { token },
-            withCredentials: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 2000,
+            auth: token ? { token } : {},
         });
 
         socket.on('connect', () => {
-            console.log('✓ Socket.IO connected');
+            console.log('✓ Admin Socket.IO connected to', SOCKET_URL);
         });
 
         socket.on('disconnect', () => {
@@ -70,6 +69,16 @@ export const onSosUpdate = (callback: (event: SosEvent) => void) => {
     }
 };
 
+// Listen for admin:alert events from backend (emitted on SOS trigger)
+export const onAdminAlert = (callback: (data: { source: string; type: string; timestamp: string }) => void) => {
+    if (socket) {
+        socket.on('admin:alert', (data) => {
+            console.log('🚨 Received admin:alert:', data);
+            callback(data);
+        });
+    }
+};
+
 export const offSosNew = () => {
     if (socket) {
         socket.off('sos:new');
@@ -82,11 +91,37 @@ export const offSosUpdate = () => {
     }
 };
 
+export const offAdminAlert = () => {
+    if (socket) {
+        socket.off('admin:alert');
+    }
+};
+
+// Listen for admin:incident events from backend (emitted on incident creation)
+export const onAdminIncident = (callback: (data: { type: string; incidentId: string; severity: string; title: string; timestamp: string }) => void) => {
+    if (socket) {
+        socket.on('admin:incident', (data) => {
+            console.log('📋 Received admin:incident:', data);
+            callback(data);
+        });
+    }
+};
+
+export const offAdminIncident = () => {
+    if (socket) {
+        socket.off('admin:incident');
+    }
+};
+
 export default {
     initializeSocket,
     disconnectSocket,
     onSosNew,
     onSosUpdate,
+    onAdminAlert,
+    onAdminIncident,
     offSosNew,
     offSosUpdate,
+    offAdminAlert,
+    offAdminIncident,
 };

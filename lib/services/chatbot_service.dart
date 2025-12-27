@@ -38,6 +38,10 @@ class ChatbotService {
   static const String boxName = 'chatbotBox';
   static List<ChatMessage> _messages = [];
   static final List<Function(ChatMessage)> _listeners = [];
+  static int _unreadCount = 0; // Track unread bot messages
+  
+  static int get unreadCount => _unreadCount;
+  static void resetUnreadCount() => _unreadCount = 0;
 
   static Future<void> initialize() async {
     if (!Hive.isBoxOpen(boxName)) {
@@ -88,6 +92,7 @@ class ChatbotService {
       timestamp: DateTime.now(),
     );
     _messages.add(botMsg);
+    _unreadCount++; // Increment unread for badge
     _notifyListeners(botMsg);
     await _saveMessages();
   }
