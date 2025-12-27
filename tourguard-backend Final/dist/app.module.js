@@ -19,6 +19,7 @@ const otp_module_1 = require("./otp/otp.module");
 const emergency_contacts_module_1 = require("./emergency-contacts/emergency-contacts.module");
 const sos_alerts_module_1 = require("./sos-alerts/sos-alerts.module");
 const health_controller_1 = require("./health.controller");
+const safety_gateway_1 = require("./gateways/safety.gateway");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -58,5 +59,6 @@ exports.AppModule = AppModule = __decorate([
             sos_alerts_module_1.SOSAlertsModule,
         ],
         controllers: [health_controller_1.HealthController],
+        providers: [safety_gateway_1.SafetyGateway],
     })
 ], AppModule);

@@ -10,6 +10,7 @@ import { OtpModule } from './otp/otp.module';
 import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts.module';
 import { SOSAlertsModule } from './sos-alerts/sos-alerts.module';
 import { HealthController } from './health.controller';
+import { SafetyGateway } from './gateways/safety.gateway';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { HealthController } from './health.controller';
     SOSAlertsModule,
   ],
   controllers: [HealthController],
+  providers: [SafetyGateway],
 })
 export class AppModule { }
 
