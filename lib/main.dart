@@ -24,6 +24,7 @@ import 'package:tourguard/services/localization_service.dart';
 import 'package:tourguard/services/offline_map_service.dart';
 import 'package:tourguard/services/location_service.dart';
 import 'package:tourguard/services/location_emitter.dart';
+import 'package:tourguard/services/websocket_service.dart';
 import 'package:tourguard/app/router.dart';
 
 void main() async {
@@ -39,7 +40,8 @@ void main() async {
   // Initialize location services in background (non-blocking)
   // Don't await - app starts immediately, location initializes in parallel
   LocationService().initialize().then((_) {
-    LocationEmitter().start();
+    WebSocketService().init(); // Connect to backend
+    LocationEmitter().start(); // Start sending updates
   });
   
   runApp(

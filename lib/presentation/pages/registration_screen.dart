@@ -178,7 +178,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                   ),
                                 ),
                                 SizedBox(height: 24),
-                                Icon(Icons.person_add_alt_1_outlined, size: 48, color: AppColors.navyBlue),
+                                Image.asset(
+                                  'assets/images/icon.png',
+                                  height: 60,
+                                  width: 60,
+                                ),
                                 SizedBox(height: 8),
                                 Text(
                                   'Create Account',

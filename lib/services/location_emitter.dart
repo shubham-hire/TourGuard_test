@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'location_service.dart';
+import 'websocket_service.dart';
 
 /// LocationEmitter bridges LocationService → WebSocket/Backend
 /// Keeps providers PURE (no side effects in Riverpod providers)
@@ -36,9 +37,9 @@ class LocationEmitter {
       }
       _lastEmitTime = now;
 
-      // TODO Phase 4: Wire up WebSocket here
-      // For now, just log that we would send
-      print('[LocationEmitter] Would send: ${position.latitude}, ${position.longitude}');
+      // Send real-time update to backend via WebSocket
+      WebSocketService().emitLocation(position);
+      print('[LocationEmitter] 📍 Sent location: ${position.latitude}, ${position.longitude}');
     });
 
     _started = true;

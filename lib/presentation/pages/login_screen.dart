@@ -129,7 +129,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.shield_outlined, size: 50, color: AppColors.navyBlue),
+                          Image.asset(
+                            'assets/images/icon.png',
+                            height: 60,
+                            width: 60,
+                          ),
                           SizedBox(width: 10),
                           Text(
                             'TourGuard',

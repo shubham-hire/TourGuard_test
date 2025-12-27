@@ -1,5 +1,6 @@
 import 'dart:async';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/safety_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
@@ -24,20 +25,20 @@ import '../utils/constants.dart';
 import '../utils/geofence_helper.dart';
 import '../services/weather_service.dart';
 import '../widgets/chatbot_widget.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as provider_pkg;
 import '../presentation/providers/auth_provider.dart';
 import '../services/backend_service.dart';
 import '../core/constants/app_colors.dart';
 
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   static const MethodChannel _notifyChannel = MethodChannel('tourapp/notifications');
   static const double _safetyRadiusKm = 3;
   StreamSubscription<Position>? _positionSub;
@@ -385,7 +386,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _startSafetyRefreshTimer() {
     _safetyRefreshTimer?.cancel();
     _safetyRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      _refreshSafetyScore();
+      // _refreshSafetyScore(); // Phase 4: Disabled in favor of real-timeWebSocket
       _refreshWeather();
       _refreshActiveAlerts();
     });
@@ -622,6 +623,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Phase 4: Real-time Listener
+    // Update local state when backend pushes a new score
+    ref.listen(safetyScoreProvider, (prev, next) {
+      next.whenData((data) {
+        if (mounted) {
+          setState(() {
+            _safetyScoreData = data;
+            _lastSafetyUpdate = DateTime.now();
+            _isSafetyLoading = false;
+          });
+          print('[Dashboard] ⚡ Real-time Safety Update: ${data['score']}');
+        }
+      });
+    });
+
+    ref.listen(emergencyAckProvider, (prev, next) {
+      next.whenData((data) {
+        if (mounted) {
+           _showSystemNotification('🚨 Help is coming!', data['message'] ?? 'Emergency acknowledged by server.');
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(
+               content: Text(data['message'] ?? 'Emergency Alert Received!'),
+               backgroundColor: AppColors.error,
+               duration: const Duration(seconds: 5),
+             ),
+           );
+        }
+      });
+    });
+
     return ValueListenableBuilder<String>(
       valueListenable: LocalizationService.languageNotifier,
       builder: (context, language, _) {
@@ -854,7 +885,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
-              child: Consumer<AuthProvider>(
+              child: provider_pkg.Consumer<AuthProvider>(
                 builder: (context, auth, child) {
                   final user = auth.user;
                   final name = user?.name ?? 'Guest';
