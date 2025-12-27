@@ -62,4 +62,34 @@ export class UsersController {
       data: { photoUrl },
     };
   }
+
+  // Location update endpoint (for backward compatibility with REST calls)
+  @Post('update-location')
+  @UseGuards(JwtAuthGuard)
+  async updateLocation(
+    @Body() body: { lat: number; lng: number },
+    @Request() req,
+  ) {
+    // Just acknowledge - real-time updates now handled via WebSocket
+    console.log(`Location update from user ${req.user.userId}: ${body.lat}, ${body.lng}`);
+    return {
+      success: true,
+      message: 'Location received',
+    };
+  }
+
+  // Activity logging endpoint
+  @Post('activity')
+  @UseGuards(JwtAuthGuard)
+  async logActivity(
+    @Body() body: { action: string; metadata?: any },
+    @Request() req,
+  ) {
+    // Just acknowledge - could store in DB if needed later
+    console.log(`Activity from user ${req.user.userId}: ${body.action}`);
+    return {
+      success: true,
+      message: 'Activity logged',
+    };
+  }
 }

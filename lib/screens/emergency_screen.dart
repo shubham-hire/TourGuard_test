@@ -91,7 +91,19 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         return;
       }
 
-      const keywords = ['help', 'please help', 'i need help', 'sos'];
+      // Multilingual distress keywords (English, Hindi, Marathi, regional)
+      const keywords = [
+        // English
+        'help', 'help me', 'please help', 'i need help', 'sos', 'emergency', 'save me', 'danger',
+        // Hindi
+        'bachao', 'bachaao', 'madad', 'madad karo', 'madad chahiye', 'mujhe bachao', 'mujhe madad chahiye',
+        // Marathi  
+        'vaachva', 'vaachava', 'madad kara', 'help kara',
+        // Common phonetic variations
+        'bachav', 'bachaw', 'madath', 'sahayata', 'bacha lo', 'bacha le',
+        // Panic phrases
+        'call police', 'call 100', 'police', 'ambulance', 'fire', 'attack', 'robbery', 'thief',
+      ];
       final matchedKeyword =
           keywords.firstWhere((kw) => recognized.contains(kw), orElse: () => '');
       final now = DateTime.now();

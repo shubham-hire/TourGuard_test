@@ -22,4 +22,18 @@ export declare class UsersController {
             photoUrl: string;
         };
     }>;
+    updateLocation(body: {
+        lat: number;
+        lng: number;
+    }, req: any): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    logActivity(body: {
+        action: string;
+        metadata?: any;
+    }, req: any): Promise<{
+        success: boolean;
+        message: string;
+    }>;
 }
