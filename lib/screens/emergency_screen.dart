@@ -6,7 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'incident_report_screen.dart';
+import 'package:go_router/go_router.dart';
 import '../services/location_service.dart';
 import 'package:provider/provider.dart';
 import '../presentation/providers/auth_provider.dart';
@@ -215,14 +215,12 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     }
   }
 
-  /// Send SOS directly to backend via WebSocket (no SMS app needed)
+  /// Previously sent SOS via WebSocket which caused duplicate notifications.
+  /// Now disabled since BackendService.createAlert handles both the database
+  /// save AND the WebSocket broadcast via SafetyGateway.
   void _sendSOSViaWebSocket(String triggerType) {
-    try {
-      print('[SOS] 🚨 Sending emergency to server: $triggerType');
-      WebSocketService().emitEmergency();
-    } catch (e) {
-      print('[SOS] WebSocket error: $e');
-    }
+    // Disabled - BackendService.createAlert handles WebSocket broadcast
+    print('[SOS] WebSocket emit disabled - using HTTP endpoint instead');
   }
 
   void _showCallFeedback(String command, String number) {
@@ -406,41 +404,13 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
           }());
         }
 
-        // Also log SOS as an incident in the NestJS incidents table
-        unawaited(() async {
-          try {
-            await ApiService.reportIncident({
-              'title': 'SOS Alert',
-              'description':
-                  'SOS triggered by ${userName ?? userId} at $latitude, $longitude',
-              'category': 'SOS',
-              'urgency': 'Critical',
-              'location': {
-                'latitude': latitude,
-                'longitude': longitude,
-              },
-              'address': null,
-              'userId': userId,
-              'reportedAt': DateTime.now().toIso8601String(),
-            });
-          } catch (error) {
-            print('Incident logging error (non-critical): $error');
-          }
-        }());
+        // Note: Previously also logged SOS as an incident in /incidents table.
+        // Removed to avoid duplicate notifications. SOS is now tracked ONLY
+        // in the sos_alerts table via BackendService.createAlert above.
         
-        // Also send to old backend (fire and forget - no await)
-        unawaited(() async {
-          try {
-            await ApiService.sendSOS(
-              latitude: latitude,
-              longitude: longitude,
-              emergencyContacts: contacts,
-              userName: userName,
-            ).timeout(const Duration(seconds: 5));
-          } catch (error) {
-            print('Backend SMS error (non-critical): $error');
-          }
-        }());
+        // Note: ApiService.sendSOS was previously used for SMS backend but now
+        // BackendService.createAlert handles the unified /sos-alerts endpoint.
+        // Removed to avoid duplicate SOS entries.
       }
 
       // Send to Firestore (fire and forget - no await)
@@ -838,12 +808,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         const SizedBox(height: 16),
         InkWell(
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const IncidentReportScreen(),
-              ),
-            );
+            context.push('/incident-report');
           },
           borderRadius: BorderRadius.circular(16),
           child: Container(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,7 @@ import '../services/location_service.dart';
 import '../services/backend_service.dart';
 import '../widgets/setting_tile.dart';
 import 'my_incidents_screen.dart';
+import '../core/constants/app_colors.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -29,12 +31,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _shareLocation = false;
 
   late String _selectedLanguage;
-  bool _showLanguageOptions = false;
-
   List<Contact> _emergencyContacts = [];
-  bool _showContactModal = false;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+
+  // Defines a modern gradient for the header
+  final LinearGradient _headerGradient = const LinearGradient(
+    colors: [Color(0xFF1A237E), Color(0xFF3949AB)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
   @override
   void initState() {
@@ -45,19 +51,122 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSavedContacts() async {
     try {
+      // Primary source: SharedPreferences (same as AuthProvider uses for SOS)
+      final prefs = await SharedPreferences.getInstance();
+      final contactsData = prefs.getStringList('emergency_contacts');
+      
+      if (contactsData != null && contactsData.isNotEmpty) {
+        setState(() {
+          _emergencyContacts = contactsData.map((e) {
+            final Map<String, dynamic> decoded = jsonDecode(e);
+            return Contact(
+              id: decoded['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+              name: decoded['name'] ?? '',
+              phone: decoded['phone'] ?? '',
+            );
+          }).toList();
+        });
+        return;
+      }
+      
+      // Fallback: Check Hive (legacy storage)
       final box = await Hive.openBox('userBox');
       final saved = box.get('emergencyContacts', defaultValue: []) as List<dynamic>;
-      setState(() {
-        _emergencyContacts = saved.map((e) {
-          if (e is Map) {
-            return Contact(id: e['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(), name: e['name'] ?? '', phone: e['phone'] ?? '');
-          }
-          return Contact(id: DateTime.now().millisecondsSinceEpoch.toString(), name: e.toString(), phone: e.toString());
-        }).toList();
-      });
+      if (saved.isNotEmpty) {
+        setState(() {
+          _emergencyContacts = saved.map((e) {
+            if (e is Map) {
+              return Contact(
+                id: e['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                name: e['name'] ?? '',
+                phone: e['phone'] ?? '',
+              );
+            }
+            return Contact(
+              id: DateTime.now().millisecondsSinceEpoch.toString(),
+              name: e.toString(),
+              phone: e.toString(),
+            );
+          }).toList();
+        });
+        // Migrate to SharedPreferences
+        await _syncContactsToSharedPreferences();
+      }
     } catch (e) {
-      // ignore
+      print('[Settings] Error loading contacts: $e');
     }
+  }
+  
+  Future<void> _syncContactsToSharedPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> encodedList = _emergencyContacts
+        .map((c) => jsonEncode({'id': c.id, 'name': c.name, 'phone': c.phone}))
+        .toList();
+    await prefs.setStringList('emergency_contacts', encodedList);
+  }
+
+  void _showAddContactDialog() {
+    _nameController.clear();
+    _phoneController.clear();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.person_add, color: AppColors.navyBlue),
+            const SizedBox(width: 8),
+            const Flexible(
+              child: Text(
+                'Add Emergency Contact',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Name',
+                prefixIcon: const Icon(Icons.person_outline),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Phone',
+                prefixIcon: const Icon(Icons.phone_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              _addEmergencyContact();
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.navyBlue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _addEmergencyContact() async {
@@ -73,46 +182,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
           phone: phone,
         ));
       });
-      // persist locally
+      // persist locally to SharedPreferences (same as AuthProvider)
+      await _syncContactsToSharedPreferences();
+      
+      // Also persist to Hive for backup
       final box = Hive.box('userBox');
       final list = _emergencyContacts.map((c) => {'id': c.id, 'name': c.name, 'phone': c.phone}).toList();
       box.put('emergencyContacts', list);
-      _nameController.clear();
-      _phoneController.clear();
-      _showContactModal = false;
 
       // Sync to backend (fire and forget)
       try {
         final token = await BackendService.getToken();
-        final userId = await BackendService.getUserId();
-        await http.post(
-          Uri.parse('${BackendService.baseUrl}/emergency-contacts'),
+        final url = '${BackendService.baseUrl}/emergency-contacts';
+        print('[EmergencyContact] Saving to: $url');
+        print('[EmergencyContact] Token: ${token != null ? "Present" : "Missing"}');
+        
+        if (token == null) {
+          print('[EmergencyContact] ⚠️ No auth token - contact will only be saved locally');
+          return;
+        }
+        
+        final response = await http.post(
+          Uri.parse(url),
           headers: {
             'Content-Type': 'application/json',
-            if (token != null) 'Authorization': 'Bearer $token',
+            'Authorization': 'Bearer $token',
           },
           body: jsonEncode({
-            'userId': userId ?? 'anonymous', // Link contact to user
             'name': name,
             'phone': phone,
             'relationship': 'Emergency',
             'isPrimary': _emergencyContacts.length == 1,
           }),
         );
-        print('[EmergencyContact] Synced to backend for user $userId: $name');
+        
+        print('[EmergencyContact] Response status: ${response.statusCode}');
+        print('[EmergencyContact] Response body: ${response.body}');
+        
+        if (response.statusCode == 201 || response.statusCode == 200) {
+          print('[EmergencyContact] ✅ Saved to database successfully!');
+        } else {
+          print('[EmergencyContact] ❌ Failed to save: ${response.statusCode}');
+        }
       } catch (e) {
         print('[EmergencyContact] Backend sync failed: $e');
       }
     }
   }
 
-  void _removeEmergencyContact(String id) {
+  void _removeEmergencyContact(String id) async {
     setState(() {
       _emergencyContacts.removeWhere((contact) => contact.id == id);
     });
+    
+    // Sync to SharedPreferences
+    await _syncContactsToSharedPreferences();
+    
+    // Also update Hive
     final box = Hive.box('userBox');
     final list = _emergencyContacts.map((c) => {'id': c.id, 'name': c.name, 'phone': c.phone}).toList();
     box.put('emergencyContacts', list);
+    
+    // Delete from backend database
+    try {
+      final token = await BackendService.getToken();
+      final url = '${BackendService.baseUrl}/emergency-contacts/$id';
+      print('[EmergencyContact] Deleting from: $url');
+      print('[EmergencyContact] Token present: ${token != null ? "YES (${token.substring(0, 20)}...)" : "NO"}');
+      
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      
+      print('[EmergencyContact] Delete response: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        print('[EmergencyContact] ✅ Deleted from database!');
+      } else {
+        print('[EmergencyContact] ❌ Delete failed: ${response.body}');
+      }
+    } catch (e) {
+      print('[EmergencyContact] Backend delete failed: $e');
+    }
   }
 
   Future<void> _handleFamilyTrackingToggle(bool value) async {
@@ -128,7 +282,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _familyTracking = true);
 
     if (_emergencyContacts.isEmpty) {
-      setState(() => _showContactModal = true);
+      _showAddContactDialog();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Add an emergency contact to share updates with your family')),
       );
@@ -163,13 +317,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final message =
           'Family Tracking enabled.\nCurrent location: $mapsUrl\nCoordinates: $lat, $lng\nTime: ${DateTime.now().toLocal()}';
       final smsUri = Uri.parse('sms:$phoneNumbers?body=${Uri.encodeComponent(message)}');
-      final launched = await launchUrl(smsUri, mode: LaunchMode.externalApplication);
-      if (!launched) {
-        throw Exception('Could not open the SMS app');
-      }
+      await launchUrl(smsUri, mode: LaunchMode.externalApplication);
+      
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Shared your current location with family contacts')),
+        const SnackBar(content: Text('Shared your current location via SMS')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -183,7 +335,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_emergencyContacts.isNotEmpty) {
       return true;
     }
-    setState(() => _showContactModal = true);
+    _showAddContactDialog();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Add at least one emergency contact to share your location')),
     );
@@ -194,401 +346,357 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await LocalizationService.setLanguage(languageCode);
     setState(() {
       _selectedLanguage = languageCode;
-      _showLanguageOptions = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Language changed to ${LocalizationService.getLanguageName(languageCode)}',
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-      body: Stack(
-        children: <Widget>[
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 24), // Top padding
-                // Header
-                Text(
-                  tr('settings'),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+      backgroundColor: Colors.grey[50],
+      body: CustomScrollView(
+        slivers: [
+          // Modern Silver AppBar
+          SliverAppBar(
+            expandedHeight: 180.0,
+            floating: false,
+            pinned: true,
+            leading: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: CircleAvatar(
+                backgroundColor: Colors.white,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  onPressed: () => Navigator.of(context).pop(),
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                ),
+              ),
+            ),
+            backgroundColor: AppColors.navyBlue,
+            flexibleSpace: FlexibleSpaceBar(
+              centerTitle: true,
+              title: const Text(
+                'Settings',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  shadows: [Shadow(color: Colors.black26, blurRadius: 4)],
+                ),
+              ),
+              background: Container(
+                decoration: BoxDecoration(gradient: _headerGradient),
+                child: Center(
+                  child: Opacity(
+                    opacity: 0.1,
+                    child: Icon(Icons.settings, size: 120, color: Colors.white),
                   ),
                 ),
-                const SizedBox(height: 16),
+              ),
+            ),
+          ),
 
-                // Safety & Monitoring
-                _buildSectionHeader('safety_monitoring'),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: Column(
-                    children: [
-                      SettingTile(
-                        icon: Icons.location_on,
-                        iconColor: Colors.green,
-                        title: tr('location_tracking'),
-                        value: _locationTracking,
-                        onChanged: (value) =>
-                            setState(() => _locationTracking = value),
-                      ),
-                      SettingTile(
-                        icon: Icons.notifications,
-                        iconColor: Colors.red,
-                        title: tr('notifications'),
-                        value: _emergencyAlerts,
-                        onChanged: (value) =>
-                            setState(() => _emergencyAlerts = value),
-                      ),
-                      SettingTile(
-                        icon: Icons.shield,
-                        iconColor: Colors.orange,
-                        title: 'Geofence Alerts',
-                        value: _geofenceAlerts,
-                        onChanged: (value) =>
-                            setState(() => _geofenceAlerts = value),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Incident Reporting
-                _buildSectionHeader('incident_tracking'),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: ListTile(
-                    leading: Icon(Icons.report_problem, color: Colors.red[700]),
-                    title: Text(
-                      tr('my_incident_reports'),
-                      style: const TextStyle(fontWeight: FontWeight.w500),
+          SliverPadding(
+            padding: const EdgeInsets.all(16.0),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                
+                _buildSectionTitle('Safety & Monitoring'),
+                _buildSettingsCard(
+                  children: [
+                    _buildSwitchTile(
+                      icon: Icons.location_on,
+                      color: Colors.green,
+                      title: tr('location_tracking'),
+                      value: _locationTracking,
+                      onChanged: (v) => setState(() => _locationTracking = v),
                     ),
-                    subtitle: Text(tr('view_and_track_reports')),
-                    trailing: const Icon(Icons.arrow_forward),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MyIncidentsScreen(),
-                        ),
-                      );
-                    },
-                  ),
+                    _buildDivider(),
+                    _buildSwitchTile(
+                      icon: Icons.notifications_active,
+                      color: Colors.redAccent,
+                      title: tr('notifications'),
+                      value: _emergencyAlerts,
+                      onChanged: (v) => setState(() => _emergencyAlerts = v),
+                    ),
+                    _buildDivider(),
+                    _buildSwitchTile(
+                      icon: Icons.security,
+                      color: Colors.orange,
+                      title: 'Geofence Alerts',
+                      value: _geofenceAlerts,
+                      onChanged: (v) => setState(() => _geofenceAlerts = v),
+                    ),
+                  ],
                 ),
-
                 const SizedBox(height: 24),
 
-                // Family & Contacts
-                _buildSectionHeader('family_contacts'),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: Column(
-                    children: [
-                      SettingTile(
-                        icon: Icons.person,
-                        iconColor: Colors.blue,
-                        title: tr('family_tracking'),
-                        value: _familyTracking,
-                        onChanged: (value) => _handleFamilyTrackingToggle(value),
-                      ),
-                      ListTile(
-                        leading: Icon(Icons.phone, color: Colors.grey[600]),
-                        title: Text(
-                          tr('emergency_contacts'),
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                _buildSectionTitle('Incident Reporting'),
+                _buildSettingsCard(
+                  children: [
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.shade50,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        trailing: IconButton(
-                          onPressed: _familyTracking
-                              ? () => setState(() => _showContactModal = true)
-                              : null,
-                          icon: Icon(Icons.add_circle,
-                              color: _familyTracking
-                                  ? Colors.green
-                                  : Colors.grey),
-                        ),
-                        enabled: _familyTracking,
+                        child: const Icon(Icons.history, color: Colors.purple),
                       ),
-                      if (_emergencyContacts.isNotEmpty)
-                        ..._buildContactList(),
-                      SettingTile(
-                        icon: Icons.share,
-                        iconColor: Colors.purple,
+                      title: Text(tr('my_incident_reports'), style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(tr('view_and_track_reports'), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                      onTap: () {
+                         Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MyIncidentsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                _buildSectionTitle('Family Tracking'),
+                _buildSettingsCard(
+                  children: [
+                    _buildSwitchTile(
+                      icon: Icons.family_restroom,
+                      color: Colors.blue,
+                      title: tr('family_tracking'),
+                      subtitle: 'Share live location with contacts',
+                      value: _familyTracking,
+                      onChanged: _handleFamilyTrackingToggle,
+                    ),
+                    if (_familyTracking) ...[
+                      _buildDivider(),
+                      _buildSwitchTile(
+                        icon: Icons.share_location,
+                        color: Colors.teal,
                         title: tr('share_location_family'),
                         value: _shareLocation,
                         onChanged: (value) async {
                           if (value) {
-                            if (!_familyTracking) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Enable Family Tracking first')),
-                              );
-                              return;
-                            }
-                            final hasContacts = await _ensureFamilyContactsAvailable();
-                            if (!hasContacts) {
-                              return;
-                            }
-                            setState(() => _shareLocation = true);
-                            await FamilyTrackingService.start();
-                            await _sendCurrentLocationToFamily();
+                             if (!_familyTracking) return;
+                             final hasContacts = await _ensureFamilyContactsAvailable();
+                             if (!hasContacts) return;
+                             setState(() => _shareLocation = true);
+                             await FamilyTrackingService.start();
+                             await _sendCurrentLocationToFamily();
                           } else {
-                            setState(() => _shareLocation = false);
-                            await FamilyTrackingService.stop();
+                             setState(() => _shareLocation = false);
+                             await FamilyTrackingService.stop();
                           }
                         },
-                        enabled: _familyTracking,
                       ),
                     ],
-                  ),
+                    _buildDivider(),
+         
+                    // Always show emergency contacts section
+                    ListTile(
+                      title: Text(tr('emergency_contacts'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.add_circle, color: AppColors.navyBlue),
+                        onPressed: _showAddContactDialog,
+                      ),
+                    ),
+                    ..._emergencyContacts.map((c) => ListTile(
+                      dense: true,
+                      leading: const CircleAvatar(
+                        backgroundColor: Colors.grey,
+                        radius: 14,
+                        child: Icon(Icons.person, size: 16, color: Colors.white),
+                      ),
+                      title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                      subtitle: Text(c.phone),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                        onPressed: () => _removeEmergencyContact(c.id),
+                      ),
+                    )).toList(),
+                    if (_emergencyContacts.isEmpty)
+                       const Padding(
+                         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                         child: Text('No contacts added yet', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                       ),
+                  ],
                 ),
-
                 const SizedBox(height: 24),
 
-                // Language & Region
-                _buildSectionHeader('language_region'),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: Icon(Icons.language, color: Colors.green),
-                        title: Text(
-                          tr('language'),
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                _buildSectionTitle('Preferences'),
+                _buildSettingsCard(
+                  children: [
+                    ExpansionTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.shade50,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              LocalizationService.getLanguageName(
-                                  _selectedLanguage),
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                            Icon(
-                              _showLanguageOptions
-                                  ? Icons.expand_less
-                                  : Icons.expand_more,
-                              color: Colors.grey[400],
-                            ),
-                          ],
-                        ),
-                        onTap: () => setState(
-                            () => _showLanguageOptions = !_showLanguageOptions),
+                        child: const Icon(Icons.language, color: Colors.indigo),
                       ),
-                      if (_showLanguageOptions) ..._buildLanguageOptions(),
-                    ],
-                  ),
+                      title: Text(tr('language'), style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                        LocalizationService.getLanguageName(_selectedLanguage),
+                         style: TextStyle(color: Colors.grey[600]),
+                      ),
+                      children: LocalizationService.getAvailableLanguages().map((code) {
+                        return RadioListTile<String>(
+                          title: Text(LocalizationService.getLanguageName(code)),
+                          value: code,
+                          activeColor: AppColors.navyBlue,
+                          groupValue: _selectedLanguage,
+                          onChanged: (val) {
+                            if (val != null) _changeLanguage(val);
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
-
                 const SizedBox(height: 32),
-
-                // Logout
-                Center(
-                  child: TextButton(
-                    onPressed: () {
-                      // Handle logout
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: Text(tr('logout')),
-                            content: Text(tr('logout_confirm_message')),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: Text(tr('cancel')),
-                              ),
-                              TextButton(
-                                onPressed: () async {
-                                  Navigator.pop(context); // Close dialog
-                                  
-                                  // Perform logout
-                                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                                  await authProvider.logout();
-                                  
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(tr('logged_out_successfully')),
-                                        backgroundColor: Colors.green,
-                                      ),
-                                    );
-                                    context.go('/login');
-                                  }
-                                },
-                                child: Text(
-                                  tr('logout'),
-                                  style: const TextStyle(color: Colors.red),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                    child: Text(
-                      tr('logout'),
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.w500,
+                
+                // Logout Button
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _showLogoutConfirmation,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[50], // Light red background
+                      foregroundColor: Colors.red, // Red text
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(color: Colors.red.withOpacity(0.2)),
                       ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.logout),
+                        const SizedBox(width: 8),
+                        Text(
+                          tr('logout'),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 80),
-              ],
+                const SizedBox(height: 40),
+              ]),
             ),
           ),
-
-          // Contact Modal
-          if (_showContactModal) _buildContactModal(),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String titleKey) {
+  Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(left: 8, bottom: 12),
       child: Text(
-        tr(titleKey),
+        title.toUpperCase(),
         style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: Colors.grey[500],
-          letterSpacing: 1,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[600],
+          letterSpacing: 1.2,
         ),
       ),
     );
   }
 
-  List<Widget> _buildContactList() {
-    return _emergencyContacts.map((contact) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            const Icon(Icons.phone, size: 16),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text('${contact.name} - ${contact.phone}'),
+  Widget _buildSettingsCard({required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Divider(height: 1, thickness: 0.5, color: Colors.grey[200], indent: 60);
+  }
+
+  Widget _buildSwitchTile({
+    required IconData icon,
+    required Color color,
+    required String title,
+    String? subtitle,
+    required bool value,
+    required Function(bool) onChanged,
+  }) {
+    return SwitchListTile(
+      value: value,
+      onChanged: onChanged,
+      activeColor: AppColors.navyBlue,
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+      subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(fontSize: 12)) : null,
+      secondary: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: color, size: 22),
+      ),
+    );
+  }
+
+  void _showLogoutConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(tr('logout')),
+          content: Text(tr('logout_confirm_message')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(tr('cancel'), style: const TextStyle(color: Colors.grey)),
             ),
-            IconButton(
-              onPressed: () => _removeEmergencyContact(contact.id),
-              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context); // Close dialog
+                
+                final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                await authProvider.logout();
+                
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(tr('logged_out_successfully')),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  context.go('/login');
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text(tr('logout'), style: const TextStyle(color: Colors.white)),
             ),
           ],
-        ),
-      );
-    }).toList();
-  }
-
-  List<Widget> _buildLanguageOptions() {
-    return LocalizationService.getAvailableLanguages().map((code) {
-      return RadioListTile<String>(
-        title: Text(LocalizationService.getLanguageName(code)),
-        value: code,
-        groupValue: _selectedLanguage,
-        onChanged: (value) {
-          if (value != null) {
-            _changeLanguage(value);
-          }
-        },
-      );
-    }).toList();
-  }
-
-  Widget _buildContactModal() {
-    return Container(
-      color: Colors.black54,
-      child: Center(
-        child: Container(
-          width: 300,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Add Emergency Contact',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Phone',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () =>
-                          setState(() => _showContactModal = false),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _addEmergencyContact,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                      ),
-                      child: const Text('Save',
-                          style: TextStyle(color: Colors.white)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -599,3 +707,4 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 }
+

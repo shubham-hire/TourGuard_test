@@ -4,6 +4,7 @@ import '../screens/dashboard_screen.dart';
 import '../screens/explore_screen.dart';
 import '../screens/emergency_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/incident_report_screen.dart';
 import '../presentation/pages/splash_screen.dart';
 import '../presentation/pages/login_screen.dart';
 import '../presentation/pages/registration_screen.dart';
@@ -163,6 +164,12 @@ final router = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
+    ),
+    
+    // Incident Report Route (Outside shell - no bottom nav)
+    GoRoute(
+      path: '/incident-report',
+      builder: (context, state) => const IncidentReportScreen(),
     ),
 
     // Main app with bottom navigation (ShellRoute keeps nav bar persistent)

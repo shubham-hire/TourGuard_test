@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -11,6 +12,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User) private usersRepo: Repository<User>,
     private config: ConfigService,
+    private jwtService: JwtService,
   ) { }
 
   async create(userData: Partial<User>): Promise<User> {
@@ -67,8 +69,9 @@ export class UsersService {
   }
 
   async generateToken(user: User): Promise<string> {
-    // Simple token generation (you can enhance this with JWT)
-    return Buffer.from(`${user.id}:${Date.now()}`).toString('base64');
+    // Generate proper JWT token
+    const payload = { sub: user.id, email: user.email, role: user.role };
+    return this.jwtService.sign(payload);
   }
 
   async updateLastLogin(userId: string): Promise<void> {

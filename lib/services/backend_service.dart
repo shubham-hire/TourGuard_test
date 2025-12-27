@@ -202,6 +202,9 @@ class BackendService {
         throw Exception('Not authenticated');
       }
 
+      // Get userId from stored credentials
+      final userId = await getUserId();
+
       final response = await http.post(
         Uri.parse('$baseUrl/sos-alerts'),
         headers: {
@@ -209,6 +212,7 @@ class BackendService {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
+          if (userId != null) 'userId': userId,
           'latitude': lat,
           'longitude': lng,
           'message': message ?? 'SOS Alert triggered from app',

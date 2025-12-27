@@ -6,12 +6,14 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class EmergencyContactsController {
     constructor(private service: EmergencyContactsService) { }
 
-    // Made accessible without auth for hackathon (accepts userId in body)
+    // Protected: Must be authenticated to add contacts
     @Post()
-    create(@Body() dto: { userId?: string; name: string; phone: string; relationship?: string; isPrimary?: boolean }) {
-        // Use provided userId or a default for anonymous contacts
-        const userId = dto.userId || 'anonymous';
-        return this.service.create(userId, dto);
+    @UseGuards(JwtAuthGuard)
+    create(
+        @Body() dto: { name: string; phone: string; relationship?: string; isPrimary?: boolean },
+        @Req() req: any,
+    ) {
+        return this.service.create(req.user.id, dto);
     }
 
     @Get()

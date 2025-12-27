@@ -44,4 +44,16 @@ export class EmergencyContactsService {
         }
         return { deleted: false };
     }
+
+    // Delete by ID only (for hackathon - no userId check)
+    async deleteById(id: string) {
+        const contact = await this.repo.findOne({
+            where: { id },
+        });
+        if (contact) {
+            await this.repo.remove(contact);
+            return { deleted: true, id };
+        }
+        return { deleted: false, id };
+    }
 }
