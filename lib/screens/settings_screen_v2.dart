@@ -4,15 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/contact_model.dart';
 import '../presentation/providers/auth_provider.dart';
 import '../services/family_tracking_service.dart';
 import '../services/localization_service.dart';
 import '../services/location_service.dart';
-import '../services/backend_service.dart';
-import '../widgets/setting_tile.dart';
 import 'my_incidents_screen.dart';
 import '../core/constants/app_colors.dart';
 
@@ -32,8 +29,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   late String _selectedLanguage;
   List<Contact> _emergencyContacts = [];
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
 
   // Defines a modern gradient for the header
   final LinearGradient _headerGradient = const LinearGradient(
@@ -105,170 +100,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await prefs.setStringList('emergency_contacts', encodedList);
   }
 
-  void _showAddContactDialog() {
-    _nameController.clear();
-    _phoneController.clear();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.person_add, color: AppColors.navyBlue),
-            const SizedBox(width: 8),
-            const Flexible(
-              child: Text(
-                'Add Emergency Contact',
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: InputDecoration(
-                labelText: 'Name',
-                prefixIcon: const Icon(Icons.person_outline),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: 'Phone',
-                prefixIcon: const Icon(Icons.phone_outlined),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              _addEmergencyContact();
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.navyBlue,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _addEmergencyContact() async {
-    final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
-
-    if (name.isNotEmpty && phone.isNotEmpty) {
-      final localId = DateTime.now().millisecondsSinceEpoch.toString();
-      setState(() {
-        _emergencyContacts.add(Contact(
-          id: localId,
-          name: name,
-          phone: phone,
-        ));
-      });
-      // persist locally to SharedPreferences (same as AuthProvider)
-      await _syncContactsToSharedPreferences();
-      
-      // Also persist to Hive for backup
-      final box = Hive.box('userBox');
-      final list = _emergencyContacts.map((c) => {'id': c.id, 'name': c.name, 'phone': c.phone}).toList();
-      box.put('emergencyContacts', list);
-
-      // Sync to backend (fire and forget)
-      try {
-        final token = await BackendService.getToken();
-        final url = '${BackendService.baseUrl}/emergency-contacts';
-        print('[EmergencyContact] Saving to: $url');
-        print('[EmergencyContact] Token: ${token != null ? "Present" : "Missing"}');
-        
-        if (token == null) {
-          print('[EmergencyContact] ⚠️ No auth token - contact will only be saved locally');
-          return;
-        }
-        
-        final response = await http.post(
-          Uri.parse(url),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({
-            'name': name,
-            'phone': phone,
-            'relationship': 'Emergency',
-            'isPrimary': _emergencyContacts.length == 1,
-          }),
-        );
-        
-        print('[EmergencyContact] Response status: ${response.statusCode}');
-        print('[EmergencyContact] Response body: ${response.body}');
-        
-        if (response.statusCode == 201 || response.statusCode == 200) {
-          print('[EmergencyContact] ✅ Saved to database successfully!');
-        } else {
-          print('[EmergencyContact] ❌ Failed to save: ${response.statusCode}');
-        }
-      } catch (e) {
-        print('[EmergencyContact] Backend sync failed: $e');
-      }
-    }
-  }
-
-  void _removeEmergencyContact(String id) async {
-    setState(() {
-      _emergencyContacts.removeWhere((contact) => contact.id == id);
-    });
-    
-    // Sync to SharedPreferences
-    await _syncContactsToSharedPreferences();
-    
-    // Also update Hive
-    final box = Hive.box('userBox');
-    final list = _emergencyContacts.map((c) => {'id': c.id, 'name': c.name, 'phone': c.phone}).toList();
-    box.put('emergencyContacts', list);
-    
-    // Delete from backend database
-    try {
-      final token = await BackendService.getToken();
-      final url = '${BackendService.baseUrl}/emergency-contacts/$id';
-      print('[EmergencyContact] Deleting from: $url');
-      print('[EmergencyContact] Token present: ${token != null ? "YES (${token.substring(0, 20)}...)" : "NO"}');
-      
-      final response = await http.delete(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
-      
-      print('[EmergencyContact] Delete response: ${response.statusCode}');
-      if (response.statusCode == 200) {
-        print('[EmergencyContact] ✅ Deleted from database!');
-      } else {
-        print('[EmergencyContact] ❌ Delete failed: ${response.body}');
-      }
-    } catch (e) {
-      print('[EmergencyContact] Backend delete failed: $e');
-    }
-  }
-
   Future<void> _handleFamilyTrackingToggle(bool value) async {
     if (!value) {
       setState(() {
@@ -282,9 +113,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _familyTracking = true);
 
     if (_emergencyContacts.isEmpty) {
-      _showAddContactDialog();
+      context.push('/profile');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add an emergency contact to share updates with your family')),
+        const SnackBar(content: Text('Add an emergency contact from your Profile to share updates with your family')),
       );
       return;
     }
@@ -335,9 +166,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_emergencyContacts.isNotEmpty) {
       return true;
     }
-    _showAddContactDialog();
+    context.push('/profile');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add at least one emergency contact to share your location')),
+      const SnackBar(content: Text('Add at least one emergency contact from your Profile to share your location')),
     );
     return false;
   }
@@ -492,12 +323,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                     _buildDivider(),
          
-                    // Always show emergency contacts section
+                    // Read-only display of emergency contacts (managed from Profile)
                     ListTile(
                       title: Text(tr('emergency_contacts'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.add_circle, color: AppColors.navyBlue),
-                        onPressed: _showAddContactDialog,
+                      subtitle: const Text('Manage contacts from Profile', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      trailing: TextButton(
+                        onPressed: () => context.push('/profile'),
+                        child: const Text('Edit', style: TextStyle(color: AppColors.navyBlue)),
                       ),
                     ),
                     ..._emergencyContacts.map((c) => ListTile(
@@ -509,15 +341,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w500)),
                       subtitle: Text(c.phone),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                        onPressed: () => _removeEmergencyContact(c.id),
-                      ),
                     )).toList(),
                     if (_emergencyContacts.isEmpty)
                        const Padding(
                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                         child: Text('No contacts added yet', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                         child: Text('No contacts added yet. Add from Profile.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
                        ),
                   ],
                 ),
@@ -699,12 +527,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
     );
   }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
 }
+
 

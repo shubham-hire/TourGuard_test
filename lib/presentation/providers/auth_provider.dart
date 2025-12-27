@@ -180,12 +180,114 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> addEmergencyContact(String name, String phone) async {
-    _emergencyContacts.add({'name': name, 'phone': phone});
+    // Generate a local ID for tracking
+    final localId = DateTime.now().millisecondsSinceEpoch.toString();
+    _emergencyContacts.add({'id': localId, 'name': name, 'phone': phone});
+    
+    // Save locally first
     final prefs = await SharedPreferences.getInstance();
     final List<String> encodedList =
         _emergencyContacts.map((e) => jsonEncode(e)).toList();
     await prefs.setStringList('emergency_contacts', encodedList);
     notifyListeners();
+    
+    // Sync to backend (fire and forget)
+    try {
+      final token = await BackendService.getToken();
+      if (token == null) {
+        print('[AuthProvider] No token - contact saved locally only');
+        return;
+      }
+      
+      final response = await _makeRequest(
+        'POST',
+        '${BackendService.baseUrl}/emergency-contacts',
+        token,
+        body: {
+          'name': name,
+          'phone': phone,
+          'relationship': 'Emergency',
+          'isPrimary': _emergencyContacts.length == 1,
+        },
+      );
+      
+      if (response != null && response['id'] != null) {
+        // Update local contact with backend ID
+        final index = _emergencyContacts.indexWhere((c) => c['id'] == localId);
+        if (index >= 0) {
+          _emergencyContacts[index]['backendId'] = response['id'];
+          await prefs.setStringList('emergency_contacts',
+              _emergencyContacts.map((e) => jsonEncode(e)).toList());
+        }
+        print('[AuthProvider] ✅ Contact synced to backend: ${response['id']}');
+      }
+    } catch (e) {
+      print('[AuthProvider] Backend sync failed: $e');
+    }
+  }
+
+  Future<void> removeEmergencyContact(int index) async {
+    if (index >= 0 && index < _emergencyContacts.length) {
+      final contact = _emergencyContacts[index];
+      final backendId = contact['backendId'];
+      
+      _emergencyContacts.removeAt(index);
+      final prefs = await SharedPreferences.getInstance();
+      final List<String> encodedList =
+          _emergencyContacts.map((e) => jsonEncode(e)).toList();
+      await prefs.setStringList('emergency_contacts', encodedList);
+      notifyListeners();
+      
+      // Delete from backend if we have a backend ID
+      if (backendId != null) {
+        try {
+          final token = await BackendService.getToken();
+          if (token != null) {
+            await _makeRequest(
+              'DELETE',
+              '${BackendService.baseUrl}/emergency-contacts/$backendId',
+              token,
+            );
+            print('[AuthProvider] ✅ Contact deleted from backend');
+          }
+        } catch (e) {
+          print('[AuthProvider] Backend delete failed: $e');
+        }
+      }
+    }
+  }
+  
+  Future<Map<String, dynamic>?> _makeRequest(
+    String method, 
+    String url, 
+    String token, 
+    {Map<String, dynamic>? body}
+  ) async {
+    try {
+      final uri = Uri.parse(url);
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+      
+      late final dynamic response;
+      if (method == 'POST') {
+        final httpResponse = await HttpClient().postUrl(uri)
+          ..headers.contentType = ContentType.json
+          ..headers.add('Authorization', 'Bearer $token')
+          ..write(jsonEncode(body));
+        response = await (await httpResponse.close()).transform(utf8.decoder).join();
+      } else if (method == 'DELETE') {
+        final httpResponse = await HttpClient().deleteUrl(uri)
+          ..headers.add('Authorization', 'Bearer $token');
+        response = await (await httpResponse.close()).transform(utf8.decoder).join();
+      }
+      
+      return jsonDecode(response);
+    } catch (e) {
+      print('[AuthProvider] HTTP request failed: $e');
+      return null;
+    }
   }
 
   void clearError() {

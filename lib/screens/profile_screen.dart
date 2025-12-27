@@ -560,36 +560,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                  ),
                )
             else
-              ...authProvider.emergencyContacts.map(
-                (contact) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9FAFB),
-                      borderRadius: BorderRadius.circular(12),
+              ...authProvider.emergencyContacts.asMap().entries.map(
+                (entry) {
+                  final index = entry.key;
+                  final contact = entry.value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                contact['name'] ?? 'Unknown',
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textDark),
+                              ),
+                              Text(
+                                contact['phone'] ?? '',
+                                style: const TextStyle(color: AppColors.textLight, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.phone_in_talk, color: Colors.green, size: 18),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => _confirmDeleteContact(context, authProvider, index),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              contact['name'] ?? 'Unknown',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textDark),
-                            ),
-                            Text(
-                              contact['phone'] ?? '',
-                              style: const TextStyle(color: AppColors.textLight, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                        const Icon(Icons.phone_in_talk, color: Colors.green, size: 18),
-                      ],
-                    ),
-                  ),
-                ),
+                  );
+                },
               ),
           ],
         ),
@@ -623,6 +639,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     }
+  }
+
+  void _confirmDeleteContact(BuildContext context, AuthProvider authProvider, int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Contact?'),
+        content: const Text('Are you sure you want to remove this emergency contact?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              authProvider.removeEmergencyContact(index);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Contact removed')),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAddContactDialog(BuildContext context) {
