@@ -320,14 +320,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         _logGeofenceEvent(zoneId: id, zoneName: zoneName, event: 'enter', lat: pos.latitude, lng: pos.longitude)
             .catchError((e) => debugPrint('Log error: $e'));
         
-        // Show popup notification (non-blocking)
-        if (mounted) {
-          _showGeofencePopup(
-            title: 'Entered Zone',
-            message: 'You entered $zoneName',
-            isEntry: true,
-          ).catchError((e) => debugPrint('Popup error: $e'));
-        }
         break;
       }
 
@@ -366,14 +358,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         _logGeofenceEvent(zoneId: id, zoneName: zoneName, event: 'exit', lat: pos.latitude, lng: pos.longitude)
             .catchError((e) => debugPrint('Log error: $e'));
         
-        // Show popup notification (non-blocking)
-        if (mounted) {
-          _showGeofencePopup(
-            title: 'Exited Zone',
-            message: 'You exited $zoneName',
-            isEntry: false,
-          ).catchError((e) => debugPrint('Popup error: $e'));
-        }
         break;
       }
       // No transition: keep state as-is

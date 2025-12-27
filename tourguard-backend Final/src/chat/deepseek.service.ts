@@ -48,10 +48,13 @@ If the user asks about their current zone safety, simulate that they are in a "C
 If they ask about nearby travelers, simulate that 8-12 verified travelers are within 5km.`;
 
   constructor(private configService: ConfigService) {
-    // API key is set directly (for demo/hackathon purposes)
-    // In production, use environment variables
-    this.apiKey = process.env.DEEPSEEK_API_KEY || 'sk-e01e65ab8ef1491fb76ab9204ff76165';
-    this.logger.log('DeepSeek AI Service initialized');
+    // API key must be set via environment variable
+    this.apiKey = process.env.DEEPSEEK_API_KEY || '';
+    if (!this.apiKey) {
+      this.logger.warn('DEEPSEEK_API_KEY not set - AI chat will use fallback responses');
+    } else {
+      this.logger.log('DeepSeek AI Service initialized');
+    }
   }
 
   async chat(userMessage: string, conversationHistory: ChatMessage[] = []): Promise<string> {
