@@ -18,6 +18,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isUploadingPhoto = false;
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String>(
@@ -200,11 +202,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: CircleAvatar(
                               radius: 56, // Adjusted radius
                               backgroundColor: Colors.white,
-                              backgroundImage: user.profilePhotoUrl != null
+                              backgroundImage: user.profilePhotoUrl != null && !_isUploadingPhoto
                                   ? CachedNetworkImageProvider(
                                       '${BackendService.baseUrl.replaceAll('/api', '')}${user.profilePhotoUrl!}')
                                   : null,
-                              child: user.profilePhotoUrl == null
+                              child: user.profilePhotoUrl == null && !_isUploadingPhoto
                                   ? Text(
                                       user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
                                       style: const TextStyle(
@@ -216,33 +218,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   : null,
                             ),
                           ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: GestureDetector(
-                              onTap: () async {
-                                final ImagePicker picker = ImagePicker();
-                                final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-                                
-                                if (image != null && context.mounted) {
-                                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                                  await authProvider.updateProfilePicture(File(image.path));
-                                }
-                              },
+                          // Loading overlay
+                          if (_isUploadingPhoto)
+                            Positioned.fill(
                               child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.navyBlue,
+                                decoration: BoxDecoration(
                                   shape: BoxShape.circle,
+                                  color: Colors.black.withOpacity(0.5),
                                 ),
-                                child: const Icon(
-                                  Icons.edit,
-                                  color: Colors.white,
-                                  size: 16,
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 3,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                          // Edit button
+                          if (!_isUploadingPhoto)
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: () async {
+                                  final ImagePicker picker = ImagePicker();
+                                  final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                                  
+                                  if (image != null && context.mounted) {
+                                    setState(() => _isUploadingPhoto = true);
+                                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                    await authProvider.updateProfilePicture(File(image.path));
+                                    if (mounted) setState(() => _isUploadingPhoto = false);
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.navyBlue,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),

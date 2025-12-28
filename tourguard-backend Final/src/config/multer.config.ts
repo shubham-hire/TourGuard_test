@@ -9,7 +9,7 @@ export const multerConfig = {
             cb(null, uniqueName);
         },
     }),
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
     fileFilter: (req, file, cb) => {
         // Accept common image formats including mobile formats (webp, heic)
         const allowedMimes = /image\/(jpg|jpeg|png|webp|heic|heif)$/;

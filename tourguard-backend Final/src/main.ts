@@ -11,6 +11,10 @@ async function bootstrap() {
   // Enable CORS
   app.enableCors();
 
+  // Increase body parser limit for file uploads
+  app.useBodyParser('json', { limit: '10mb' });
+  app.useBodyParser('urlencoded', { limit: '10mb', extended: true });
+
   // Serve static files from uploads directory
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',
