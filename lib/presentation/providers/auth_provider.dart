@@ -269,6 +269,7 @@ class AuthProvider with ChangeNotifier {
 
       // BackendService.baseUrl already includes /api, so just append the endpoint path
       final uri = Uri.parse('${BackendService.baseUrl}/user/upload-profile-photo');
+      print('[ProfilePic] Token: ${token.substring(0, 20)}...'); // First 20 chars for privacy
       print('[ProfilePic] Uploading to: $uri');
       
       final request = http.MultipartRequest('POST', uri);
