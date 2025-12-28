@@ -33,4 +33,17 @@ export class EmergencyContactsController {
     delete(@Param('id') id: string, @Req() req: any) {
         return this.service.delete(id, req.user.id);
     }
+
+    // Clear all contacts for the authenticated user
+    @Delete('user/clear')
+    @UseGuards(JwtAuthGuard)
+    clearUserContacts(@Req() req: any) {
+        return this.service.deleteAllForUser(req.user.id);
+    }
+
+    // Admin: Truncate all contacts (for testing/reset)
+    @Delete('admin/truncate-all')
+    truncateAll() {
+        return this.service.truncateAll();
+    }
 }

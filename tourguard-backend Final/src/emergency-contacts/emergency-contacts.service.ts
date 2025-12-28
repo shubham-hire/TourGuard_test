@@ -56,4 +56,18 @@ export class EmergencyContactsService {
         }
         return { deleted: false, id };
     }
+
+    // Delete all contacts for a specific user
+    async deleteAllForUser(userId: string) {
+        const contacts = await this.repo.find({ where: { userId } });
+        await this.repo.remove(contacts);
+        return { deleted: true, count: contacts.length };
+    }
+
+    // Truncate all contacts (admin/testing)
+    async truncateAll() {
+        await this.repo.clear();
+        return { truncated: true, message: 'All emergency contacts deleted' };
+    }
 }
+

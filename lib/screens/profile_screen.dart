@@ -5,6 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../services/localization_service.dart';
 import '../presentation/providers/auth_provider.dart';
 import '../core/constants/app_colors.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:io';
+import '../services/backend_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -172,34 +176,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Column(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        // Tiranga border for avatar
-                        gradient: const LinearGradient(
-                           colors: [Color(0xFFFF9933), Colors.white, Color(0xFF138808)],
-                           begin: Alignment.topLeft,
-                           end: Alignment.bottomRight,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
+                      height: 120,
+                      width: 120, // Explicit size
+                      child: Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFFF9933), Colors.white, Color(0xFF138808)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              radius: 56, // Adjusted radius
+                              backgroundColor: Colors.white,
+                              backgroundImage: user.profilePhotoUrl != null
+                                  ? CachedNetworkImageProvider(
+                                      '${BackendService.baseUrl.replaceAll('/api', '')}${user.profilePhotoUrl!}')
+                                  : null,
+                              child: user.profilePhotoUrl == null
+                                  ? Text(
+                                      user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 32,
+                                        color: AppColors.navyBlue,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () async {
+                                final ImagePicker picker = ImagePicker();
+                                final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                                
+                                if (image != null && context.mounted) {
+                                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                  await authProvider.updateProfilePicture(File(image.path));
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.navyBlue,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.edit,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
-                      ),
-                      child: CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.white,
-                        child: Text(
-                          user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 32,
-                            color: AppColors.navyBlue,
-                          ),
-                        ),
                       ),
                     ),
                     const SizedBox(height: 16),

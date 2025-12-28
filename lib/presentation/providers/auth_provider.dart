@@ -6,6 +6,7 @@ import '../../data/models/user_model.dart';
 import '../../data/services/auth_service.dart';
 import '../../services/backend_service.dart';
 import '../../services/blockchain_service.dart';
+import 'package:http/http.dart' as http;
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -174,6 +175,7 @@ class AuthProvider with ChangeNotifier {
           'phone': user.phone,
           'userType': user.userType,
           'nationality': user.nationality,
+          'profilePhotoUrl': user.profilePhotoUrl,
           'hashId': user.hashId,
           'blockchainHashId': user.blockchainHashId,
         }));
@@ -257,6 +259,54 @@ class AuthProvider with ChangeNotifier {
     }
   }
   
+  Future<bool> updateProfilePicture(File imageFile) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final token = await BackendService.getToken();
+      if (token == null) throw Exception('Not authenticated');
+
+      // BackendService.baseUrl already includes /api, so just append the endpoint path
+      final uri = Uri.parse('${BackendService.baseUrl}/user/upload-profile-photo');
+      print('[ProfilePic] Uploading to: $uri');
+      
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(await http.MultipartFile.fromPath('profilePhoto', imageFile.path));
+      
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      print('[ProfilePic] Response status: ${response.statusCode}');
+      print('[ProfilePic] Response body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          final photoUrl = data['data']['photoUrl'];
+          print('[ProfilePic] Photo URL received: $photoUrl');
+          
+          if (_user != null) {
+            _user = _user!.copyWith(profilePhotoUrl: photoUrl);
+            await _saveUserToPrefs(_user!);
+            notifyListeners();
+            return true;
+          }
+        }
+      }
+      return false;
+      
+    } catch (e) {
+      print('[ProfilePic] Upload failed: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
   Future<Map<String, dynamic>?> _makeRequest(
     String method, 
     String url, 
@@ -304,6 +354,7 @@ class AuthProvider with ChangeNotifier {
       'userType': raw['userType'] ?? _registrationType ?? 'domestic',
       'nationality': raw['nationality'],
       'documentUrl': raw['documentUrl'],
+      'profilePhotoUrl': raw['profilePhotoUrl'],
       'hashId': raw['hashId'],
       'blockchainHashId': raw['blockchainHashId'],
     };

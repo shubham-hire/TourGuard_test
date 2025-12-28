@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/safety_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -905,10 +906,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         child: CircleAvatar(
                           radius: 24,
                           backgroundColor: AppColors.navyBlue,
-                          child: Text(
-                            name.isNotEmpty ? name[0].toUpperCase() : '?',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white),
-                          ),
+                          backgroundImage: user?.profilePhotoUrl != null
+                              ? CachedNetworkImageProvider(
+                                  '${BackendService.baseUrl.replaceAll('/api', '')}${user!.profilePhotoUrl!}')
+                              : null,
+                          child: user?.profilePhotoUrl == null
+                              ? Text(
+                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white),
+                                )
+                              : null,
                         ),
                       ),
                       const SizedBox(width: 12),

@@ -113,10 +113,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _familyTracking = true);
 
     if (_emergencyContacts.isEmpty) {
-      context.push('/profile');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add an emergency contact from your Profile to share updates with your family')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Add an emergency contact from your Profile to share updates with your family')),
+        );
+        context.push('/profile');
+      }
       return;
     }
 
@@ -166,10 +168,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_emergencyContacts.isNotEmpty) {
       return true;
     }
-    context.push('/profile');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add at least one emergency contact from your Profile to share your location')),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add at least one emergency contact from your Profile to share your location')),
+      );
+      context.push('/profile');
+    }
     return false;
   }
 

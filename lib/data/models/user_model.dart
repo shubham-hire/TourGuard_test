@@ -6,6 +6,7 @@ class User {
   final String? userType; // 'indian' or 'international'
   final String? nationality;
   final String? documentUrl;
+  final String? profilePhotoUrl; // Profile picture URL
   final String? hashId;
   final String? blockchainHashId; // Ethereum blockchain hash ID
 
@@ -17,6 +18,7 @@ class User {
     this.userType,
     this.nationality,
     this.documentUrl,
+    this.profilePhotoUrl,
     this.hashId,
     this.blockchainHashId,
   });
@@ -30,6 +32,7 @@ class User {
       userType: json['userType'],
       nationality: json['nationality'],
       documentUrl: json['documentUrl'],
+      profilePhotoUrl: json['profilePhotoUrl'],
       hashId: json['hashId'],
       blockchainHashId: json['blockchainHashId'],
     );
@@ -44,8 +47,35 @@ class User {
       'userType': userType,
       'nationality': nationality,
       'documentUrl': documentUrl,
+      'profilePhotoUrl': profilePhotoUrl,
       'hashId': hashId,
       'blockchainHashId': blockchainHashId,
     };
+  }
+
+  User copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? phone,
+    String? userType,
+    String? nationality,
+    String? documentUrl,
+    String? profilePhotoUrl,
+    String? hashId,
+    String? blockchainHashId,
+  }) {
+    return User(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      userType: userType ?? this.userType,
+      nationality: nationality ?? this.nationality,
+      documentUrl: documentUrl ?? this.documentUrl,
+      profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
+      hashId: hashId ?? this.hashId,
+      blockchainHashId: blockchainHashId ?? this.blockchainHashId,
+    );
   }
 }
