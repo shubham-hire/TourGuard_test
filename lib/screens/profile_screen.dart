@@ -242,7 +242,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: GestureDetector(
                                 onTap: () async {
                                   final ImagePicker picker = ImagePicker();
-                                  final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                                  // Compress image: max 512px, 70% quality = ~50-100KB instead of 5-10MB
+                                  final XFile? image = await picker.pickImage(
+                                    source: ImageSource.gallery,
+                                    maxWidth: 512,
+                                    maxHeight: 512,
+                                    imageQuality: 70,
+                                  );
                                   
                                   if (image != null && context.mounted) {
                                     setState(() => _isUploadingPhoto = true);

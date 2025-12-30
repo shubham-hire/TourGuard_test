@@ -1,33 +1,35 @@
-import React from 'react';
-import { DistressScoreCard } from './DistressScoreCard';
-import { InvestigationReportViewer } from './InvestigationReportViewer';
-import { AIHealthStatus } from './AIHealthStatus';
+import React from "react";
+import { DistressScoreCard } from "./DistressScoreCard";
+import { InvestigationReportViewer } from "./InvestigationReportViewer";
+import { AIHealthStatus } from "./AIHealthStatus";
 
 /**
  * Example: How to integrate AI components into your admin dashboard
- * 
+ *
  * You can use these components in your incident details page,
  * tourist monitoring page, or create a dedicated AI insights page.
  */
 
 // Example 1: Incident Details Page
-export const IncidentDetailsWithAI: React.FC<{ incidentId: string }> = ({ incidentId }) => {
+export const IncidentDetailsWithAI: React.FC<{ incidentId: string }> = ({
+  incidentId: _incidentId,
+}) => {
   // Fetch incident data (example)
   const incident = {
-    touristId: 'tourist-123',
-    tripId: 'trip-456',
+    touristId: "tourist-123",
+    tripId: "trip-456",
     currentLocation: {
-      lat: '25.2841',
-      lng: '91.5801',
+      lat: "25.2841",
+      lng: "91.5801",
       timestamp: new Date().toISOString(),
-      speed_mps: '0.5',
-      battery_pct: '25',
-      accuracy_m: '85',
+      speed_mps: "0.5",
+      battery_pct: "25",
+      accuracy_m: "85",
     },
     recentAlerts: [
-      { type: 'danger_zone', message: 'Entered high-risk area' },
-      { type: 'long_inactivity', message: 'No movement for 20 minutes' }
-    ]
+      { type: "danger_zone", message: "Entered high-risk area" },
+      { type: "long_inactivity", message: "No movement for 20 minutes" },
+    ],
   };
 
   return (
@@ -65,8 +67,8 @@ export const IncidentDetailsWithAI: React.FC<{ incidentId: string }> = ({ incide
 // Example 2: Tourist Monitoring Dashboard
 export const TouristMonitoringWithAI: React.FC = () => {
   const activeTourists = [
-    { id: 'tourist-1', tripId: 'trip-1', name: 'John Doe' },
-    { id: 'tourist-2', tripId: 'trip-2', name: 'Jane Smith' },
+    { id: "tourist-1", tripId: "trip-1", name: "John Doe" },
+    { id: "tourist-2", tripId: "trip-2", name: "Jane Smith" },
   ];
 
   return (
@@ -77,22 +79,22 @@ export const TouristMonitoringWithAI: React.FC = () => {
       </div>
 
       <div className="tourists-grid">
-        {activeTourists.map(tourist => (
+        {activeTourists.map((tourist) => (
           <div key={tourist.id} className="tourist-card">
             <h3>{tourist.name}</h3>
-            
+
             {/* Mini distress score */}
             <DistressScoreCard
               touristId={tourist.id}
               tripId={tourist.tripId}
               currentObservation={{
                 // Fetch from real-time data
-                lat: '25.28',
-                lng: '91.58',
+                lat: "25.28",
+                lng: "91.58",
                 timestamp: new Date().toISOString(),
-                speed_mps: '1.5',
-                battery_pct: '65',
-                accuracy_m: '15',
+                speed_mps: "1.5",
+                battery_pct: "65",
+                accuracy_m: "15",
               }}
               autoAssess={true}
             />
@@ -107,24 +109,24 @@ export const TouristMonitoringWithAI: React.FC = () => {
 export const IntegrateIntoExistingDashboard = () => {
   /**
    * To add AI features to your existing dashboard:
-   * 
+   *
    * 1. Import the components:
    *    import { AIHealthStatus } from './components/AIHealthStatus';
    *    import { DistressScoreCard } from './components/DistressScoreCard';
-   * 
+   *
    * 2. Add AI Health Status to your header/navbar:
    *    <AIHealthStatus />
-   * 
+   *
    * 3. When viewing tourist/incident details, show distress assessment:
-   *    <DistressScoreCard 
+   *    <DistressScoreCard
    *      touristId={selectedTourist.id}
    *      tripId={selectedTourist.tripId}
    *      currentObservation={latestObservation}
    *      recentAlerts={alerts}
    *    />
-   * 
+   *
    * 4. Add "Generate Investigation Report" button in incident actions:
-   *    <InvestigationReportViewer 
+   *    <InvestigationReportViewer
    *      touristId={incident.touristId}
    *      tripId={incident.tripId}
    *    />

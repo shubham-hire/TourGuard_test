@@ -84,6 +84,30 @@ flutter run
 - **🛡️ Blockchain Identity**: Secure identity verification and immutable audit logs.
 - **📶 Offline Support**: Critical features function even with poor connectivity.
 
+## 🧠 AI & LLM Powering TourGuard
+
+TourGuard leverages **Generative AI** and **Large Language Models (LLMs)** to transform raw data into actionable safety intelligence. By integrating models like **Microsoft Phi-3 Mini** (for offline, local privacy) and **Google Gemini** (for cloud-based reasoning), the system acts as a proactive safety companion.
+
+### How It Works
+
+1.  **Input**: The system collects user location, danger zones, historical safety data, and user queries.
+2.  **Processing**: The Python-based `ml-engine` processes this context using **Ollama** or **Gemini APIs**.
+3.  **Output**: You get human-readable advice, risk assessments, and emergency summaries.
+
+### Key AI Features for Tourists
+
+- **💬 Smart Travel Assistant**: A context-aware chatbot that knows your location and safety levels. Ask _"Is it safe to walk here at night?"_ and get an answer backed by real-time risk data, not just generic travel tips.
+- **🛡️ Automated Risk Advisories**: Instead of just showing a "Red Zone" on a map, the AI explains _why_ an area is risky (e.g., "High theft reported after 10 PM") and suggests specific precautions.
+- **🗺️ Intelligent Itinerary Planning**: designing a trip? The AI creates day-by-day itineraries that prioritize safe routes and daylight travel, balancing fun with security.
+- **🚨 Emergency Intelligence**: In a distress situation, the AI analyzes sensor data (speed, battery, movement) to generate a concise **Investigation Report** for first responders, highlighting critical anomalies instantly.
+
+### Technical Implementation
+
+The system utilizes a hybrid AI approach:
+
+- **Local Inference**: Uses **Ollama** to run lightweight models (Phi-3) directly on the edge, ensuring privacy and functionality without internet.
+- **Cloud Fallback**: Switches to **Google Gemini 1.5** for complex reasoning tasks when connectivity is available.
+
 ## 📂 Project Structure
 
 ```

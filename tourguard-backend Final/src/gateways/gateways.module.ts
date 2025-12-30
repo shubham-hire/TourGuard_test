@@ -6,4 +6,4 @@ import { SafetyGateway } from './safety.gateway';
     providers: [SafetyGateway],
     exports: [SafetyGateway],
 })
-export class GatewaysModule { }
+export class GatewaysModule { } 
