@@ -9,7 +9,7 @@ The project is structured as a monorepo containing multiple specialized componen
 | Component        | Directory                       | Description                                | Stack                               |
 | ---------------- | ------------------------------- | ------------------------------------------ | ----------------------------------- |
 | **Mobile App**   | Root (`/lib`, `/android`, etc.) | User-facing application for tourists       | Flutter                             |
-| **Main Backend** | `tourguard-backend Final`       | Core API, Auth, and Data Management        | NestJS, TypeORM, SQLite             |
+| **Main Backend** | `tourguard-backend Final`       | Core API, Auth, and Data Management        | NestJS, TypeORM, PostgreSQL         |
 | **Admin Panel**  | `admin_pannel`                  | Dashboard for authorities/admins           | React (Frontend), Node.js (Backend) |
 | **ML Engine**    | `ml-engine`                     | AI service for anomaly detection & routing | Python, FastAPI                     |
 | **Blockchain**   | `blockchain` / `ml-engine`      | Identity & secure logging                  | Web3, Solidity                      |
@@ -124,5 +124,5 @@ TourGuard_AppInterface/
 
 ## ⚠️ Notes
 
-- **Database**: The system uses SQLite (`database.sqlite`) for development ease. Ensure all backends are pointing to the correct database file.
+- **Database**: The system uses PostgreSQL (hosted on Render). Ensure `DATABASE_URL` environment variable is set correctly in all backends.
 - **Environment**: Check `.env.example` files in each directory to configure API keys (Google Maps, etc.) and port numbers.

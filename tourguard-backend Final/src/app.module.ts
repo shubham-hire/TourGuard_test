@@ -19,25 +19,17 @@ import { GatewaysModule } from './gateways/gateways.module';
     TypeOrmModule.forRootAsync({
       useFactory: (config: ConfigService) => {
         const databaseUrl = process.env.DATABASE_URL;
-
-        if (databaseUrl) {
-          // PostgreSQL on Render (production)
-          return {
-            type: 'postgres',
-            url: databaseUrl,
-            entities: [__dirname + '/**/*.entity{.ts,.js}'],
-            synchronize: true, // Auto-create tables (safe for dev/hackathon)
-            ssl: { rejectUnauthorized: false }, // Required for Render PostgreSQL
-          };
-        } else {
-          // SQLite for local development
-          return {
-            type: 'sqlite',
-            database: 'database.sqlite',
-            entities: [__dirname + '/**/*.entity{.ts,.js}'],
-            synchronize: true,
-          };
+        if (!databaseUrl) {
+          throw new Error('DATABASE_URL environment variable is required for PostgreSQL connection');
         }
+        // PostgreSQL on Render (production)
+        return {
+          type: 'postgres',
+          url: databaseUrl,
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: true, // Auto-create tables (safe for dev/hackathon)
+          ssl: { rejectUnauthorized: false }, // Required for Render PostgreSQL
+        };
       },
       inject: [ConfigService],
     }),

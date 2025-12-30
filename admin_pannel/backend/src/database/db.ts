@@ -1,58 +1,29 @@
-import sqlite3 from 'sqlite3';
-import path from 'path';
+import { Pool, PoolClient } from 'pg';
 
-// Resolve database path relative to project root
-const DB_PATH = path.resolve(
-  __dirname,
-  '../../../../tourguard-backend Final/database.sqlite'
-);
+// PostgreSQL connection using DATABASE_URL from environment
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }, // Required for Render PostgreSQL
+});
 
 class Database {
-  private db: sqlite3.Database;
+  private pool: Pool;
 
   constructor() {
-    this.db = new sqlite3.Database(DB_PATH, (err) => {
-      if (err) {
-        console.error('❌ Error connecting to SQLite database:', err);
-        throw err;
-      }
-      console.log('✅ Connected to SQLite database:', DB_PATH);
+    this.pool = pool;
+    this.pool.on('connect', () => {
+      console.log('✅ Connected to PostgreSQL database');
     });
-  }
-
-  // Promisify database methods
-  private run(sql: string, params?: any[]): Promise<any> {
-    return new Promise((resolve, reject) => {
-      this.db.run(sql, params || [], function(err) {
-        if (err) reject(err);
-        else resolve({ lastID: this.lastID, changes: this.changes });
-      });
-    });
-  }
-
-  private get(sql: string, params?: any[]): Promise<any> {
-    return new Promise((resolve, reject) => {
-      this.db.get(sql, params || [], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-  }
-
-  private all(sql: string, params?: any[]): Promise<any[]> {
-    return new Promise((resolve, reject) => {
-      this.db.all(sql, params || [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
+    this.pool.on('error', (err: Error) => {
+      console.error('❌ PostgreSQL pool error:', err);
     });
   }
 
   // Get all users
   async getAllUsers(): Promise<any[]> {
     try {
-      const users = await this.all('SELECT * FROM users ORDER BY createdAt DESC');
-      return users || [];
+      const result = await this.pool.query('SELECT * FROM users ORDER BY "createdAt" DESC');
+      return result.rows || [];
     } catch (error) {
       console.error('Error fetching users:', error);
       throw error;
@@ -62,8 +33,8 @@ class Database {
   // Get user by ID
   async getUserById(id: string): Promise<any | null> {
     try {
-      const user = await this.get('SELECT * FROM users WHERE id = ?', [id]);
-      return user || null;
+      const result = await this.pool.query('SELECT * FROM users WHERE id = $1', [id]);
+      return result.rows[0] || null;
     } catch (error) {
       console.error('Error fetching user:', error);
       throw error;
@@ -73,8 +44,8 @@ class Database {
   // Get user by email
   async getUserByEmail(email: string): Promise<any | null> {
     try {
-      const user = await this.get('SELECT * FROM users WHERE email = ?', [email]);
-      return user || null;
+      const result = await this.pool.query('SELECT * FROM users WHERE email = $1', [email]);
+      return result.rows[0] || null;
     } catch (error) {
       console.error('Error fetching user by email:', error);
       throw error;
@@ -84,8 +55,8 @@ class Database {
   // Get all incidents
   async getAllIncidents(): Promise<any[]> {
     try {
-      const incidents = await this.all('SELECT * FROM incidents ORDER BY createdAt DESC');
-      return incidents || [];
+      const result = await this.pool.query('SELECT * FROM incidents ORDER BY "createdAt" DESC');
+      return result.rows || [];
     } catch (error) {
       console.error('Error fetching incidents:', error);
       throw error;
@@ -95,8 +66,8 @@ class Database {
   // Get incident by ID
   async getIncidentById(id: string): Promise<any | null> {
     try {
-      const incident = await this.get('SELECT * FROM incidents WHERE id = ?', [id]);
-      return incident || null;
+      const result = await this.pool.query('SELECT * FROM incidents WHERE id = $1', [id]);
+      return result.rows[0] || null;
     } catch (error) {
       console.error('Error fetching incident:', error);
       throw error;
@@ -106,10 +77,10 @@ class Database {
   // Get SOS incidents (incidents with title = 'SOS Alert')
   async getSOSIncidents(): Promise<any[]> {
     try {
-      const incidents = await this.all(
-        "SELECT * FROM incidents WHERE title = 'SOS Alert' ORDER BY createdAt DESC"
+      const result = await this.pool.query(
+        "SELECT * FROM incidents WHERE title = 'SOS Alert' ORDER BY \"createdAt\" DESC"
       );
-      return incidents || [];
+      return result.rows || [];
     } catch (error) {
       console.error('Error fetching SOS incidents:', error);
       throw error;
@@ -146,7 +117,7 @@ class Database {
       }
 
       // Update description with new JSON
-      await this.run('UPDATE incidents SET description = ? WHERE id = ?', [
+      await this.pool.query('UPDATE incidents SET description = $1 WHERE id = $2', [
         JSON.stringify(descObj),
         id,
       ]);
@@ -158,16 +129,14 @@ class Database {
   }
 
   // Close database connection
-  close(): void {
-    this.db.close((err) => {
-      if (err) {
-        console.error('Error closing database:', err);
-      } else {
-        console.log('Database connection closed');
-      }
-    });
+  async close(): Promise<void> {
+    try {
+      await this.pool.end();
+      console.log('Database connection closed');
+    } catch (err) {
+      console.error('Error closing database:', err);
+    }
   }
 }
 
 export default new Database();
-
