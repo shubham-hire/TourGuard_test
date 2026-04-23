@@ -3,6 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SOSAlert, SOSStatus } from './entities/sos-alert.entity';
 import { SafetyGateway } from '../gateways/safety.gateway';
+import { IncidentSeverity } from '../incidents/entities/incident.entity';
+
+import { IncidentsService } from '../incidents/incidents.service';
 
 @Injectable()
 export class SOSAlertsService {
@@ -10,6 +13,7 @@ export class SOSAlertsService {
         @InjectRepository(SOSAlert)
         private repo: Repository<SOSAlert>,
         private gateway: SafetyGateway,
+        private incidentsService: IncidentsService,
     ) { }
 
     async create(userId: string | null, dto: { latitude: number; longitude: number; message?: string }) {
@@ -27,6 +31,28 @@ export class SOSAlertsService {
             timestamp: new Date().toISOString(),
             alertId: saved.id,
         });
+
+        // Duplicate as a general incident so it shows up in Admin Panel history
+        try {
+            await this.incidentsService.create({
+                title: 'SOS Alert',
+                description: JSON.stringify({
+                    originalMessage: dto.message || 'SOS Widget Triggered',
+                    status: 'pending',
+                    userId: userId,
+                    alertId: saved.id
+                }),
+                severity: IncidentSeverity.CRITICAL,
+                location: JSON.stringify({
+                    latitude: dto.latitude,
+                    longitude: dto.longitude,
+                    userId: userId
+                }),
+                category: 'SOS'
+            }, userId || undefined);
+        } catch (e) {
+            console.error('Failed to create shadow incident for SOS:', e);
+        }
 
         console.log('🚨 SOS Alert created and broadcasted:', saved.id);
         return saved;
