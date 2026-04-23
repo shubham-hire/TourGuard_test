@@ -1,3 +1,9 @@
+databases:
+  - name: tourguard-db
+    databaseName: tourguard_db
+    user: tourguard_user
+    plan: free # Free tier database
+
 services:
   # 1. Main Backend (NestJS)
   - type: web
@@ -11,7 +17,10 @@ services:
         value: 3000
       - key: NODE_ENV
         value: production
-      # Note: SQLite DB will be non-persistent on free tier
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tourguard-db
+          property: connectionString
 
   # 2. Admin Panel Backend (Express)
   - type: web
@@ -23,7 +32,10 @@ services:
     envVars:
       - key: PORT
         value: 5001
-      # Note: SQLite DB will be non-persistent on free tier
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tourguard-db
+          property: connectionString
 
   # 3. ML Engine (Python + Gemini)
   - type: web
@@ -38,4 +50,4 @@ services:
       - key: ML_ENGINE_LLM_PROVIDER
         value: gemini
       - key: ML_ENGINE_GOOGLE_API_KEY
-        generateValue: true # User will be prompted to enter this
+        sync: false # Requires manual entry in dashboard
