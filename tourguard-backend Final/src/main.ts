@@ -24,7 +24,7 @@ async function bootstrap() {
   const config = app.get(ConfigService);
   const port = config.get<number>('PORT') || 3000;
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`\n🚀 TourGuard Backend (NestJS) Running`);
   console.log(`📍 Port: ${port}`);
   console.log(`🌐 Health: http://localhost:${port}/api/health`);
