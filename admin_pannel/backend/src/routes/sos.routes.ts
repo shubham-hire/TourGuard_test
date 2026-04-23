@@ -87,7 +87,7 @@ async function mapIncidentToSOSEvent(incident: any): Promise<any> {
 }
 
 // Get all SOS events
-router.get('/api/sos', async (req: Request, res: Response) => {
+router.get('/api/sos-alerts', async (req: Request, res: Response) => {
   try {
     const { status, since } = req.query;
 
@@ -138,7 +138,7 @@ router.get('/api/sos', async (req: Request, res: Response) => {
 });
 
 // Get SOS event by ID
-router.get('/api/sos/:id', async (req: Request, res: Response) => {
+router.get('/api/sos-alerts/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const incident = await db.getIncidentById(id);
@@ -166,7 +166,7 @@ router.get('/api/sos/:id', async (req: Request, res: Response) => {
 });
 
 // Create SOS event (for testing)
-router.post('/api/sos', async (req: Request, res: Response) => {
+router.post('/api/sos-alerts', async (req: Request, res: Response) => {
   try {
     const { userId, latitude, longitude, accuracy, message } = req.body;
 
@@ -199,7 +199,7 @@ router.post('/api/sos', async (req: Request, res: Response) => {
 });
 
 // Update SOS event status
-router.patch('/api/sos/:id', async (req: Request, res: Response) => {
+router.patch('/api/sos-alerts/:id/status', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
