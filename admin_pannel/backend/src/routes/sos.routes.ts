@@ -1,260 +1,149 @@
-import express, { Request, Response } from 'express';
-import db from '../database/db';
+import express from 'express';
+import { Request, Response } from 'express';
 
 const router = express.Router();
 
-// Helper function to parse location JSON and extract data
-function parseLocation(locationStr: string | null): any {
-  if (!locationStr) return null;
-  try {
-    return JSON.parse(locationStr);
-  } catch {
-    return null;
-  }
+// The Main NestJS Backend — source of truth for SOS alerts
+const MAIN_BACKEND_URL = process.env.MAIN_BACKEND_URL || 'https://tourguard-test.onrender.com';
+
+// Helper to forward requests to the main backend (uses native fetch)
+async function proxyFetch(path: string, options: RequestInit = {}): Promise<any> {
+  const url = `${MAIN_BACKEND_URL}${path}`;
+  console.log(`[SOS Proxy] → ${options.method || 'GET'} ${url}`);
+  const resp = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...((options.headers as Record<string, string>) || {}),
+    },
+  });
+  const text = await resp.text();
+  let body: any = {};
+  try { body = JSON.parse(text); } catch { body = { raw: text }; }
+  return { ok: resp.ok, status: resp.status, body };
 }
 
-// Helper function to map incident to SOS event format
-async function mapIncidentToSOSEvent(incident: any): Promise<any> {
-  const location = parseLocation(incident.location);
-  const userId = location?.userId || null;
-
-  // Get user data if userId exists
-  let user = null;
-  if (userId) {
-    try {
-      user = await db.getUserById(userId);
-    } catch (e) {
-      console.warn(`[SOS] Could not fetch user ${userId}, table might be missing.`);
-    }
-  }
-
-  // Parse description to extract status if stored there
-  let status = 'pending';
-  let acknowledgedAt: string | undefined;
-  let resolvedAt: string | undefined;
-  
-  try {
-    const desc = typeof incident.description === 'string' 
-      ? JSON.parse(incident.description) 
-      : incident.description;
-    if (desc?.status) {
-      status = desc.status;
-    }
-    if (desc?.acknowledgedAt) {
-      acknowledgedAt = desc.acknowledgedAt;
-    }
-    if (desc?.resolvedAt) {
-      resolvedAt = desc.resolvedAt;
-    }
-  } catch {
-    // Description is plain text, use default status
-  }
-
-  // Extract message from description
-  let message = 'SOS Alert';
-  try {
-    const desc = typeof incident.description === 'string' 
-      ? JSON.parse(incident.description) 
-      : incident.description;
-    if (desc?.originalMessage) {
-      message = desc.originalMessage;
-    } else if (desc?.message) {
-      message = desc.message;
-    } else if (typeof incident.description === 'string' && !desc.status) {
-      message = incident.description;
-    }
-  } catch {
-    if (typeof incident.description === 'string') {
-      message = incident.description;
-    }
-  }
-
-  return {
-    id: incident.id,
-    userId: userId || 'unknown',
-    latitude: location?.latitude || 0,
-    longitude: location?.longitude || 0,
-    accuracyMeters: location?.accuracy || undefined,
-    message: message,
-    status: status,
-    createdAt: incident.createdAt || incident.created_at,
-    acknowledgedAt: acknowledgedAt,
-    resolvedAt: resolvedAt,
-    user: user
-      ? {
-          name: user.name || user.email || 'Unknown',
-          phone: user.phone || '',
-          email: user.email || '',
-        }
-      : undefined,
-  };
-}
-
-// Get all SOS events
+// GET /api/sos-alerts — proxied from Main Backend
 router.get('/api/sos-alerts', async (req: Request, res: Response) => {
   try {
-    const { status, since } = req.query;
+    const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+    const authHeader = req.headers.authorization || '';
 
-    // Get all SOS incidents
-    let incidents = [];
-    try {
-      incidents = await db.getSOSIncidents();
-    } catch (e) {
-      console.error('Database error fetching SOS incidents:', e);
-      // Return empty list instead of crashing if tables don't exist yet
+    const { ok, status, body } = await proxyFetch(`/api/sos-alerts${queryString}`, {
+      method: 'GET',
+      headers: { Authorization: authHeader },
+    });
+
+    if (!ok) {
+      console.error('[SOS Proxy] Main backend error:', status, body);
       return res.json({ success: true, data: [] });
     }
 
-    // Filter by status if provided
-    if (status) {
-      incidents = incidents.filter((inc) => {
-        try {
-          const desc = typeof inc.description === 'string' 
-            ? JSON.parse(inc.description) 
-            : inc.description;
-          const incidentStatus = desc?.status || 'pending';
-          return incidentStatus === status;
-        } catch {
-          // If description is plain text, default to pending
-          return status === 'pending';
-        }
-      });
-    }
+    // Main backend returns an array directly, wrap it
+    const events: any[] = Array.isArray(body) ? body : (body.data || body || []);
 
-    // Filter by date if provided
-    if (since) {
-      const sinceDate = new Date(since as string);
-      incidents = incidents.filter((inc) => {
-        const createdAt = new Date(inc.createdAt || inc.created_at);
-        return createdAt >= sinceDate;
-      });
-    }
+    // Normalize fields to match the SosEvent interface the frontend expects
+    const normalized = events.map((e: any) => ({
+      id: e.id,
+      userId: e.user?.id || e.userId || 'unknown',
+      latitude: parseFloat(e.latitude) || 0,
+      longitude: parseFloat(e.longitude) || 0,
+      message: e.message || 'SOS Alert',
+      status: (e.status || 'PENDING').toLowerCase(),
+      createdAt: e.triggeredAt || e.createdAt || new Date().toISOString(),
+      resolvedAt: e.resolvedAt || undefined,
+      user: e.user
+        ? {
+            name: e.user.name || e.user.email || 'Unknown',
+            phone: e.user.phone || '',
+            email: e.user.email || '',
+            medicalConditions: e.user.medicalConditions,
+            allergies: e.user.allergies,
+            emergencyContacts: e.user.emergencyContacts,
+          }
+        : undefined,
+    }));
 
-    // Map incidents to SOS events
-    const sosEvents = await Promise.all(
-      incidents.map((inc) => mapIncidentToSOSEvent(inc))
-    );
-
-    res.json({
-      success: true,
-      data: sosEvents,
-    });
+    return res.json({ success: true, data: normalized });
   } catch (error: any) {
-    console.error('Error fetching SOS events:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-    });
+    console.error('[SOS Proxy] Error:', error.message);
+    return res.json({ success: true, data: [] });
   }
 });
 
-// Get SOS event by ID
+// GET /api/sos-alerts/:id
 router.get('/api/sos-alerts/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const incident = await db.getIncidentById(id);
+    const authHeader = req.headers.authorization || '';
 
-    if (!incident || incident.title !== 'SOS Alert') {
-      return res.status(404).json({
-        success: false,
-        error: 'SOS event not found',
-      });
+    const { ok, status, body } = await proxyFetch(`/api/sos-alerts/${id}`, {
+      method: 'GET',
+      headers: { Authorization: authHeader },
+    });
+
+    if (!ok) {
+      return res.status(status).json({ success: false, error: 'SOS event not found' });
     }
 
-    const sosEvent = await mapIncidentToSOSEvent(incident);
-
-    res.json({
-      success: true,
-      data: sosEvent,
-    });
+    return res.json({ success: true, data: body });
   } catch (error: any) {
-    console.error('Error fetching SOS event:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-    });
+    console.error('[SOS Proxy] Error fetching by ID:', error.message);
+    return res.status(500).json({ success: false, error: 'Proxy error' });
   }
 });
 
-// Create SOS event (for testing)
+// POST /api/sos-alerts — forward to Main Backend
 router.post('/api/sos-alerts', async (req: Request, res: Response) => {
   try {
-    const { userId, latitude, longitude, accuracy, message } = req.body;
+    const authHeader = req.headers.authorization || '';
 
-    // This would create an incident in the database
-    // For now, we'll just return a mock response
-    // In production, you'd insert into the incidents table
-
-    const sosEvent = {
-      id: `sos-${Date.now()}`,
-      userId: userId || 'unknown',
-      latitude,
-      longitude,
-      accuracyMeters: accuracy,
-      message: message || 'SOS Alert',
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
-
-    res.json({
-      success: true,
-      data: sosEvent,
+    const { ok, status, body } = await proxyFetch('/api/sos-alerts', {
+      method: 'POST',
+      headers: { Authorization: authHeader },
+      body: JSON.stringify(req.body),
     });
+
+    if (!ok) {
+      return res.status(status).json({ success: false, error: body?.message || 'Failed to create SOS' });
+    }
+
+    return res.status(201).json({ success: true, data: body });
   } catch (error: any) {
-    console.error('Error creating SOS event:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-    });
+    console.error('[SOS Proxy] Error creating SOS:', error.message);
+    return res.status(500).json({ success: false, error: 'Proxy error' });
   }
 });
 
-// Update SOS event status
+// PATCH /api/sos-alerts/:id/status — forward to Main Backend
 router.patch('/api/sos-alerts/:id/status', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const authHeader = req.headers.authorization || '';
 
-    if (!['pending', 'acknowledged', 'resolved'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid status. Must be: pending, acknowledged, or resolved',
-      });
-    }
+    // Map lowercase statuses to the enum the Main Backend expects
+    const statusMap: Record<string, string> = {
+      pending: 'PENDING',
+      acknowledged: 'ACKNOWLEDGED',
+      resolved: 'RESOLVED',
+    };
 
-    const incident = await db.getIncidentById(id);
-    if (!incident) {
-      return res.status(404).json({
-        success: false,
-        error: 'SOS event not found',
-      });
-    }
-
-    // Update status in description JSON
-    const success = await db.updateIncidentStatus(id, status);
-    if (!success) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to update status',
-      });
-    }
-
-    // Get updated incident and return as SOS event
-    const updatedIncident = await db.getIncidentById(id);
-    const sosEvent = await mapIncidentToSOSEvent(updatedIncident!);
-
-    res.json({
-      success: true,
-      data: sosEvent,
+    const { ok, status: httpStatus, body } = await proxyFetch(`/api/sos-alerts/${id}/status`, {
+      method: 'PATCH',
+      headers: { Authorization: authHeader },
+      body: JSON.stringify({ status: statusMap[status] || status }),
     });
+
+    if (!ok) {
+      return res.status(httpStatus).json({ success: false, error: 'Failed to update status' });
+    }
+
+    return res.json({ success: true, data: body });
   } catch (error: any) {
-    console.error('Error updating SOS event:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-    });
+    console.error('[SOS Proxy] Error updating status:', error.message);
+    return res.status(500).json({ success: false, error: 'Proxy error' });
   }
 });
 
 export default router;
-

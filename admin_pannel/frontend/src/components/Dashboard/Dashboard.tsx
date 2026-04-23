@@ -1,219 +1,310 @@
-import React, { useState, useEffect } from "react";
-import { io } from "socket.io-client";
-import toast, { Toaster } from "react-hot-toast";
-import Header from "../Layout/Header";
-import Sidebar from "../Layout/Sidebar";
-import SosList from "./SosList";
-import MapView from "./MapView";
-import EventDetailPanel from "./EventDetailPanel";
-import { sosApi } from "../../services/api";
-import { SosEvent } from "../../types";
+/**
+ * Main Dashboard component
+ * Assembles all dashboard components and handles real-time updates
+ */
 
-// Initialize socket connection
-const SOCKET_URL =
-  import.meta.env.VITE_API_BASE_URL || "https://tourguard-test.onrender.com";
-const socket = io(SOCKET_URL, {
-  transports: ["websocket"],
-  autoConnect: true,
-});
+import React, { useState, useEffect, useCallback } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
+import Header from '../Layout/Header';
+import Sidebar from '../Layout/Sidebar';
+import MapView from './MapView';
+import SosList from './SosList';
+import EventDetailPanel from './EventDetailPanel';
+import NearbyResources from './NearbyResources';
+import UserInfoCard from './UserInfoCard';
+import EmergencyContacts from './EmergencyContacts';
+import CommunicationLog from './CommunicationLog';
+import { SosEvent, Incident } from '../../types';
+import { sosApi, incidentsApi } from '../../services/api';
+import { initializeSocket, onSosNew, onSosUpdate, disconnectSocket } from '../../services/socket';
+import RecentIncidents from './RecentIncidents';
 
 const Dashboard: React.FC = () => {
-  const [events, setEvents] = useState<SosEvent[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<SosEvent | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [newEventId, setNewEventId] = useState<string | null>(null);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [events, setEvents] = useState<SosEvent[]>([]);
+    const [incidents, setIncidents] = useState<Incident[]>([]);
+    const [selectedEvent, setSelectedEvent] = useState<SosEvent | null>(null);
+    const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+    const [activeTab, setActiveTab] = useState<'sos' | 'incidents'>('sos');
+    const [loading, setLoading] = useState(true);
+    const [newEventId, setNewEventId] = useState<string | null>(null);
 
-  // Fetch initial events
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await sosApi.listEvents();
-        // Ensure response.data is an array if it exists, otherwise use response directly if it is an array
-        const eventList = Array.isArray(response)
-          ? response
-          : (response as any).data || [];
-        setEvents(eventList);
-      } catch (error) {
-        console.error("Failed to fetch events:", error);
-        toast.error("Failed to load SOS events");
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Fetch initial events and incidents
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [sosData, incidentsData] = await Promise.all([
+                    sosApi.listEvents(),
+                    incidentsApi.listIncidents({ type: 'regular' }),
+                ]);
+                setEvents(sosData);
+                setIncidents(incidentsData);
+            } catch (error) {
+                console.error('Failed to load data:', error);
+                toast.error('Failed to load data');
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    fetchEvents();
-  }, []);
+        fetchData();
+    }, []);
 
-  // Socket.IO event listeners
-  useEffect(() => {
-    socket.on("connect", () => {
-      console.log("Connected to socket server");
-    });
+    // Initialize Socket.IO
+    useEffect(() => {
+        const socket = initializeSocket();
 
-    socket.on("new-sos", (event: SosEvent) => {
-      console.log("New SOS event received:", event);
+        // Handle new SOS events
+        onSosNew((event: SosEvent) => {
+            console.log('New SOS event received:', event);
+            setEvents((prev) => [event, ...prev]);
+            setNewEventId(event.id);
 
-      // Add to list immediately
-      setEvents((prev) => [event, ...prev]);
+            // Show toast notification
+            toast.custom(
+                (t) => (
+                    <div
+                        className={`${t.visible ? 'animate-bounce-subtle' : 'opacity-0'
+                            } bg-danger text-white px-6 py-4 rounded-lg shadow-2xl pulse-glow cursor-pointer`}
+                        onClick={() => {
+                            setSelectedEvent(event);
+                            toast.dismiss(t.id);
+                        }}
+                    >
+                        <div className="flex items-center">
+                            <div className="mr-3">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
+                                </svg>
+                            </div>
+                            <div>
+                                <p className="font-bold">NEW SOS ALERT!</p>
+                                <p className="text-sm">{event.user?.name || 'Unknown User'}</p>
+                                <p className="text-xs opacity-90">{event.message || 'Emergency'}</p>
+                            </div>
+                        </div>
+                    </div>
+                ),
+                { duration: 10000 }
+            );
 
-      // Flash notification/sound
-      toast.custom(
-        (t) => (
-          <div
-            className={`${
-              t.visible ? "animate-enter" : "animate-leave"
-            } max-w-md w-full bg-danger shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
-          >
-            <div className="flex-1 w-0 p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 pt-0.5">
-                  <span className="text-2xl">🚨</span>
-                </div>
-                <div className="ml-3 flex-1">
-                  <p className="text-sm font-medium text-white">
-                    CRITICAL ALERT: New SOS!
-                  </p>
-                  <p className="mt-1 text-sm text-white opacity-90">
-                    {event.user?.name || "Unknown User"} needs help!
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex border-l border-white border-opacity-20">
-              <button
-                onClick={() => {
-                  toast.dismiss(t.id);
-                  setSelectedEvent(event);
-                }}
-                className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-white hover:bg-red-700 focus:outline-none"
-              >
-                View
-              </button>
-            </div>
-          </div>
-        ),
-        { duration: 10000 }
-      );
+            // Clear new event highlight after animation
+            setTimeout(() => setNewEventId(null), 3000);
+        });
 
-      setNewEventId(event.id);
-      setTimeout(() => setNewEventId(null), 5000);
-    });
+        // Handle SOS updates
+        onSosUpdate((event: SosEvent) => {
+            console.log('SOS event updated:', event);
+            setEvents((prev) => prev.map((e) => (e.id === event.id ? event : e)));
 
-    socket.on("sos-status-updated", (updatedEvent: SosEvent) => {
-      setEvents((prev) =>
-        prev.map((e) => (e.id === updatedEvent.id ? updatedEvent : e))
-      );
+            // Update selected event if it's the one being updated
+            if (selectedEvent?.id === event.id) {
+                setSelectedEvent(event);
+            }
 
-      if (selectedEvent?.id === updatedEvent.id) {
+            toast.success(`Event ${event.status}`);
+        });
+
+        return () => {
+            disconnectSocket();
+        };
+    }, [selectedEvent]);
+
+    const handleEventClick = useCallback((event: SosEvent) => {
+        setSelectedEvent(event);
+    }, []);
+
+    const handleEventUpdate = useCallback((updatedEvent: SosEvent) => {
+        setEvents((prev) => prev.map((e) => (e.id === updatedEvent.id ? updatedEvent : e)));
         setSelectedEvent(updatedEvent);
-      }
-    });
+    }, []);
 
-    return () => {
-      socket.off("connect");
-      socket.off("new-sos");
-      socket.off("sos-status-updated");
-    };
-  }, [selectedEvent]);
+    const handleCloseDetail = useCallback(() => {
+        setSelectedEvent(null);
+        setSelectedIncident(null);
+    }, []);
 
-  const handleEventSelect = (event: SosEvent) => {
-    setSelectedEvent(event);
-  };
+    const handleIncidentClick = useCallback((incident: Incident) => {
+        setSelectedIncident(incident);
+        setSelectedEvent(null);
+    }, []);
 
-  const handleEventUpdate = (updatedEvent: SosEvent) => {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === updatedEvent.id ? updatedEvent : e))
+    if (loading) {
+        return (
+            <div className="h-screen flex items-center justify-center bg-navy-dark">
+                <div className="text-white text-xl">Loading...</div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-screen flex flex-col bg-navy-dark">
+            <Toaster position="top-right" />
+
+            {/* Header */}
+            <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+
+            {/* Main content */}
+            <div className="flex-1 flex overflow-hidden">
+                {/* Sidebar */}
+                <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+                {/* Dashboard content */}
+                <main className="flex-1 overflow-y-auto">
+                    {/* Emergency SOS Banner with AI Health Status */}
+                    <div className="bg-danger text-white px-6 py-3 flex items-center justify-between">
+                        <div className="flex items-center">
+                            <span className="text-2xl font-bold mr-3">EMERGENCY SOS</span>
+                            <span className="text-sm opacity-90">
+                                {events.filter((e) => e.status === 'pending').length} pending alerts
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Main grid layout */}
+                    <div className="min-h-[calc(100vh-140px)] p-4 grid grid-cols-12 gap-4">
+                        {/* Left column: Map and list */}
+                        <div className="col-span-12 lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
+                            {/* Map */}
+                            <div className="flex-[3] min-h-0 relative">
+                                <MapView
+                                    events={events}
+                                    selectedEvent={selectedEvent}
+                                    onEventClick={handleEventClick}
+                                    newEventId={newEventId}
+                                />
+                            </div>
+
+                            {/* User info and emergency contacts */}
+                            <div className="flex-[2] min-h-0 grid grid-cols-2 gap-4">
+                                <UserInfoCard event={selectedEvent} />
+                                <EmergencyContacts event={selectedEvent} />
+                            </div>
+                        </div>
+
+                        {/* Right column: Details and resources */}
+                        <div className="col-span-12 lg:col-span-5 xl:col-span-4 flex flex-col gap-4 h-full">
+                            {/* Event detail or list */}
+                            <div className="h-[50%] bg-navy-light rounded-lg overflow-hidden flex flex-col">
+                                {selectedEvent || selectedIncident ? (
+                                    selectedEvent ? (
+                                        <EventDetailPanel
+                                            event={selectedEvent}
+                                            onClose={handleCloseDetail}
+                                            onUpdate={handleEventUpdate}
+                                        />
+                                    ) : (
+                                        <div className="p-4 h-full overflow-y-auto">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="text-lg font-semibold text-white">Incident Details</h3>
+                                                <button
+                                                    onClick={handleCloseDetail}
+                                                    className="text-gray-400 hover:text-white"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                            {selectedIncident && (
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <p className="text-xs text-gray-400">Title</p>
+                                                        <p className="text-white font-semibold">{selectedIncident.title}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-400">Category</p>
+                                                        <p className="text-white">{selectedIncident.category}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-400">Severity</p>
+                                                        <p className="text-white">{selectedIncident.severity}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-400">Description</p>
+                                                        <p className="text-white text-sm">{selectedIncident.description}</p>
+                                                    </div>
+                                                    {selectedIncident.user && (
+                                                        <div>
+                                                            <p className="text-xs text-gray-400">Reported By</p>
+                                                            <p className="text-white">{selectedIncident.user.name}</p>
+                                                            <p className="text-gray-400 text-xs">{selectedIncident.user.email}</p>
+                                                        </div>
+                                                    )}
+                                                    {selectedIncident.location && (
+                                                        <div>
+                                                            <p className="text-xs text-gray-400">Location</p>
+                                                            <p className="text-white text-xs">
+                                                                {selectedIncident.location.latitude.toFixed(6)}, {selectedIncident.location.longitude.toFixed(6)}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                ) : (
+                                    <>
+                                        {/* Tabs */}
+                                        <div className="flex border-b border-gray-700">
+                                            <button
+                                                onClick={() => setActiveTab('sos')}
+                                                className={`flex-1 px-4 py-2 text-sm font-medium ${
+                                                    activeTab === 'sos'
+                                                        ? 'bg-navy-dark text-danger border-b-2 border-danger'
+                                                        : 'text-gray-400 hover:text-white'
+                                                }`}
+                                            >
+                                                SOS Events ({events.length})
+                                            </button>
+                                            <button
+                                                onClick={() => setActiveTab('incidents')}
+                                                className={`flex-1 px-4 py-2 text-sm font-medium ${
+                                                    activeTab === 'incidents'
+                                                        ? 'bg-navy-dark text-blue-400 border-b-2 border-blue-400'
+                                                        : 'text-gray-400 hover:text-white'
+                                                }`}
+                                            >
+                                                Recent Incidents ({incidents.length})
+                                            </button>
+                                        </div>
+                                        {/* Content */}
+                                        <div className="flex-1 overflow-hidden">
+                                            {activeTab === 'sos' ? (
+                                                <SosList
+                                                    events={events}
+                                                    onEventClick={handleEventClick}
+                                                    selectedEventId={selectedEvent?.id}
+                                                />
+                                            ) : (
+                                                <RecentIncidents
+                                                    incidents={incidents}
+                                                    onIncidentClick={handleIncidentClick}
+                                                    selectedIncidentId={selectedIncident?.id}
+                                                />
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Resources and communication log */}
+                            <div className="h-[25%]">
+                                <NearbyResources event={selectedEvent} />
+                            </div>
+
+                            <div className="h-[25%]">
+                                <CommunicationLog />
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
     );
-    setSelectedEvent(updatedEvent);
-  };
-
-  return (
-    <div className="flex h-screen bg-navy-darker text-gray-100 font-sans">
-      <Toaster position="top-right" />
-
-      {/* Sidebar */}
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header />
-
-        <main className="flex-1 flex overflow-hidden">
-          {/* Left Panel: Map & List */}
-          <div
-            className={`flex-1 flex flex-col min-w-0 ${
-              selectedEvent ? "hidden lg:flex" : "flex"
-            }`}
-          >
-            {/* Map Area */}
-            <div className="h-1/2 p-4 pb-2">
-              <div className="h-full bg-navy rounded-lg shadow-lg border border-gray-700 overflow-hidden relative">
-                <MapView
-                  events={events}
-                  selectedEvent={selectedEvent}
-                  onEventClick={handleEventSelect}
-                  newEventId={newEventId}
-                />
-              </div>
-            </div>
-
-            {/* List Area */}
-            <div className="h-1/2 p-4 pt-2">
-              <div className="h-full bg-navy rounded-lg shadow-lg border border-gray-700 overflow-hidden">
-                {loading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-danger"></div>
-                  </div>
-                ) : (
-                  <SosList
-                    events={events}
-                    onEventClick={handleEventSelect}
-                    selectedEventId={selectedEvent?.id}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Panel: Detail View */}
-          {(selectedEvent || window.innerWidth >= 1024) && (
-            <div
-              className={`
-                            ${
-                              selectedEvent
-                                ? "w-full lg:w-96 border-l border-gray-700"
-                                : "hidden lg:block lg:w-0 lg:border-none"
-                            }
-                            bg-navy-light transition-all duration-300 ease-in-out
-                        `}
-            >
-              {selectedEvent ? (
-                <EventDetailPanel
-                  event={selectedEvent}
-                  onClose={() => setSelectedEvent(null)}
-                  onUpdate={handleEventUpdate}
-                />
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-gray-500 p-8 text-center">
-                  <div className="bg-navy p-4 rounded-full mb-4">
-                    <span className="text-4xl">👈</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2">
-                    Select an Event
-                  </h3>
-                  <p>
-                    Click on a map marker or list item to view incident details.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </main>
-      </div>
-    </div>
-  );
 };
 
 export default Dashboard;

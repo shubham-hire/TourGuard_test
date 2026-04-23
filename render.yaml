@@ -36,6 +36,8 @@ services:
         fromDatabase:
           name: tourguard-db
           property: connectionString
+      - key: MAIN_BACKEND_URL
+        value: https://tourguard-test.onrender.com
 
   # 3. ML Engine (Python + Gemini)
   - type: web
