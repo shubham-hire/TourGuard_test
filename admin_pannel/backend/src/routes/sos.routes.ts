@@ -21,7 +21,11 @@ async function mapIncidentToSOSEvent(incident: any): Promise<any> {
   // Get user data if userId exists
   let user = null;
   if (userId) {
-    user = await db.getUserById(userId);
+    try {
+      user = await db.getUserById(userId);
+    } catch (e) {
+      console.warn(`[SOS] Could not fetch user ${userId}, table might be missing.`);
+    }
   }
 
   // Parse description to extract status if stored there
@@ -92,7 +96,14 @@ router.get('/api/sos-alerts', async (req: Request, res: Response) => {
     const { status, since } = req.query;
 
     // Get all SOS incidents
-    let incidents = await db.getSOSIncidents();
+    let incidents = [];
+    try {
+      incidents = await db.getSOSIncidents();
+    } catch (e) {
+      console.error('Database error fetching SOS incidents:', e);
+      // Return empty list instead of crashing if tables don't exist yet
+      return res.json({ success: true, data: [] });
+    }
 
     // Filter by status if provided
     if (status) {
