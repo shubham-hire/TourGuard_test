@@ -17,12 +17,26 @@ export class SOSAlertsService {
     ) { }
 
     async create(userId: string | null, dto: { latitude: number; longitude: number; message?: string }) {
-        const alert = this.repo.create({
-            ...dto,
-            user: userId ? ({ id: userId } as any) : null,
-            status: SOSStatus.PENDING,
-        });
-        const saved = await this.repo.save(alert);
+        // Try saving with user relation first; if the userId doesn't exist
+        // in the users table, PostgreSQL FK constraint will reject it.
+        // In that case, save without user relation so the SOS still goes through.
+        let saved: SOSAlert;
+        try {
+            const alert = this.repo.create({
+                ...dto,
+                user: userId ? ({ id: userId } as any) : null,
+                status: SOSStatus.PENDING,
+            });
+            saved = await this.repo.save(alert);
+        } catch (fkError) {
+            console.warn(`⚠️ SOS: userId "${userId}" not found in users table, saving without user relation`);
+            const alert = this.repo.create({
+                ...dto,
+                user: null,
+                status: SOSStatus.PENDING,
+            });
+            saved = await this.repo.save(alert);
+        }
 
         // Broadcast to all connected admin clients via WebSocket
         this.gateway.server.emit('admin:alert', {
