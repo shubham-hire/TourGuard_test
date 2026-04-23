@@ -13,23 +13,20 @@ export class SOSAlertsController {
         return this.service.create(dto.userId || null, dto);
     }
 
-    // Protected: Only authenticated users/admins can view all alerts
+    // Open: Admin Panel proxy needs access without Main Backend JWT
     @Get()
-    @UseGuards(JwtAuthGuard)
     findAll() {
         return this.service.findAll();
     }
 
-    // Protected: Only authenticated users/admins can view pending alerts
+    // Open: Admin Panel proxy needs access
     @Get('pending')
-    @UseGuards(JwtAuthGuard)
     findPending() {
         return this.service.findPending();
     }
 
-    // Protected: Only authenticated admins can update status
+    // Open: Admin Panel proxy needs access to update status
     @Patch(':id/status')
-    @UseGuards(JwtAuthGuard)
     updateStatus(@Param('id') id: string, @Body() dto: { status: SOSStatus }) {
         return this.service.updateStatus(id, dto.status);
     }
