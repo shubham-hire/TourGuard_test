@@ -8,5 +8,6 @@ import { IncidentsController } from './incidents.controller';
   imports: [TypeOrmModule.forFeature([Incident])],
   providers: [IncidentsService],
   controllers: [IncidentsController],
+  exports: [IncidentsService],
 })
 export class IncidentsModule {}
