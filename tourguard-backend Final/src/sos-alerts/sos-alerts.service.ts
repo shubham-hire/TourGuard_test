@@ -32,6 +32,9 @@ export class SOSAlertsService {
             alertId: saved.id,
         });
 
+        // Broadcast specifically for the Admin Panel UI which expects 'sos:new'
+        this.gateway.server.emit('sos:new', saved);
+
         // Duplicate as a general incident so it shows up in Admin Panel history
         try {
             await this.incidentsService.create({
